@@ -3,9 +3,9 @@ library(tidyverse)
 library(plotly)
 library(shinyWidgets)
 
-League = read.csv("League.csv")
-Team = read.csv("Team.csv")
-Match = read.csv("Match.csv")
+League = read.csv("datasets/League.csv")
+Team = read.csv("datasets/Team.csv")
+Match = read.csv("datasets/Match.csv")
 team_lookup = Team %>% select(team_api_id, team_long_name)
 league_lookup = League %>% select(country_id, name)
 
