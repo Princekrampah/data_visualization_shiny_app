@@ -14,10 +14,12 @@ Match$date = as.Date(Match$date, format = "%d/%m/%Y %H:%M")
 Possession = read.csv("datasets/Match_Possesion.csv")
 PositionReference = read.csv("datasets/PositionReference.csv")
 Player = read.csv("datasets/Player.csv")
+Player$birthday = as.Date(Player$birthday, format = "%Y-%m-%d %H:%M")
 Player_Attributes = read.csv("datasets/Player_Attributes.csv")
+Player_Attributes$date = as.Date(Player_Attributes$date, format = "%Y-%m-%d %H:%M")
 team_lookup = Team %>% select(team_api_id, team_long_name, team_short_name)
 league_lookup = League %>% select(country_id, name)
-player_lookup = Player %>% select("player_api_id","player_name")
+player_lookup = Player %>% select("player_api_id","player_name", "birthday")
 
 Final_Possession = Possession %>% filter(elapsed == 90)
 Final_Possession = Final_Possession %>% 
@@ -41,6 +43,23 @@ Cleaned_Match = Full_Match %>%
 
 all_seasons = c("2008/2009", "2009/2010", "2010/2011", "2011/2012",
                 "2012/2013", "2013/2014", "2014/2015", "2015/2016")
+##### Getting data regarding improvement #####
+library(lubridate)
+player_yearly_ratings <- Player_Attributes %>%
+  # 1. Ensure date is in Date format and extract the year
+  mutate(
+    date = as.Date(date),
+    year = year(date)
+  ) %>%
+  # 2. Group by player AND year
+  group_by(player_api_id, year) %>%
+  # 3. Pick the latest update for that specific player in that specific year
+  slice_max(order_by = date, n = 1, with_ties = FALSE) %>%
+  # 4. Ungroup and select relevant columns
+  ungroup() %>%
+  select(player_api_id, year, date, overall_rating, potential)
+
+
 
 ##### Getting full player data #####
 current_players_in_match = Full_Match %>% filter(season=="2015/2016") %>%
@@ -76,7 +95,7 @@ last_player_match = current_players_in_match %>%
   ungroup()
 
 Player_Data = left_join(last_player_match,player_lookup, by=c("player_id"="player_api_id")) %>%
-  select(player_id, player_name, league_name, team_id, team_name, team_name_short, X, Y) %>%
+  select(player_id, player_name, birthday, league_name, team_id, team_name, team_name_short, X, Y) %>%
   mutate(position = case_when(
     Y == 1 ~ "Goalkeeper",
     Y >= 2 & Y <= 4 ~ "Defender",
@@ -84,6 +103,10 @@ Player_Data = left_join(last_player_match,player_lookup, by=c("player_id"="playe
     Y >= 9 ~ "Attacker",
     TRUE ~ "Unknown"  # Safety net for unexpected data
   ))
+Player_Data$position = factor(Player_Data$position, levels=c("Attacker","Midfielder","Defender","Goalkeeper"))
+Player_Data = Player_Data %>%
+  mutate(age = floor(as.numeric(difftime(as.Date("2016-12-31"), birthday, units = "weeks")) / 52.1775)) %>%
+  select(-birthday)
 
 latest_attributes <- Player_Attributes %>%
   # Ensure the date column is in the correct Date format
@@ -97,6 +120,34 @@ Player_Data = Player_Data %>%
   left_join(latest_attributes, by = c("player_id" = "player_api_id")) %>%
   select(-c(id, player_fifa_api_id, date, X, Y))
 
+
+# 1. Start with your yearly ratings dataframe
+player_improvement <- player_yearly_ratings %>%
+  # 1. Group by player and ensure they are in chronological order
+  group_by(player_api_id) %>%
+  arrange(year, .by_group = TRUE) %>%
+  
+  # 2. Calculate the difference (Current Year - Previous Year)
+  mutate(
+    yearly_improvement = overall_rating - lag(overall_rating)
+  ) %>%
+  
+  # 3. Instead of filtering for 2016, grab the latest year available for each player
+  slice_max(order_by = year, n = 1) %>% 
+  
+  # 4. Optional: Handle cases where a player only has 1 year of data
+  # If lag() is NA, it means they are a "New Entry" (improvement = 0 or NA)
+  mutate(yearly_improvement = coalesce(yearly_improvement, 0)) %>%
+  
+  rename(improvement_vs_2015 = yearly_improvement) %>%
+  ungroup()
+
+# 5. Join this back to your Player_Data_Final
+Player_Data = Player_Data %>%
+  left_join(
+    select(player_improvement, player_api_id, improvement_vs_2015), 
+    by = c("player_id" = "player_api_id")
+  )
 
 # ── Helper Functions ──
 teams_in_league = function(league, season_range) {
@@ -259,6 +310,33 @@ average_stats_plot = function(selected_teams, selected_seasons, side = "Both") {
     theme_bw() +
     labs(x = "Average goals scored", y = "Average goals conceded", size = "Average possession rate")
   girafe(ggobj = p, options = list(opts_sizing(rescale = TRUE)))
+}
+
+improvement_plot = function(teams="all", age_range=min(Player_Data$age,na.rm=T):max(Player_Data$age,na.rm=T),min_improvement=5) {
+  Subset_Player_data = Player_Data %>% filter(age %in% age_range, improvement_vs_2015 >= min_improvement | is.na(improvement_vs_2015))
+  if (teams!="all") {
+    Subset_Player_data = Subset_Player_data %>% filter(team_name %in% teams)
+  }
+  p = ggplot(Subset_Player_data, aes(x=age,
+                                     y=overall_rating,
+                                     size=improvement_vs_2015,
+                                     shape=position,
+                                     col=position,
+                                     text = paste0(
+                                       "\n Player Name: ", player_name,
+                                       "\n Rating: ", overall_rating,
+                                       "\n Improvement: ", improvement_vs_2015,
+                                       "\n Position: ", position,
+                                       "\n Team: ", team_name
+                                     ))) +
+    geom_jitter(alpha=0.7) + theme_bw() +
+    labs(col="Position", shape="",size="") +
+    scale_color_manual(values= c("Attacker" ="#ece134",
+                                 "Midfielder" = "#de8e08",
+                                 "Defender" ="#138f60",
+                                 "Goalkeeper"="#48a4e3")) +
+    guides(size = guide_legend(override.aes = list(shape = 16)))
+  return(ggplotly(p,tooltip = "text"))
 }
 
 # ── UI ──
