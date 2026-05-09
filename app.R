@@ -10,28 +10,93 @@ library(ggiraph)
 League = read.csv("datasets/League.csv")
 Team = read.csv("datasets/Team.csv")
 Match = read.csv("datasets/Match.csv")
+Match$date = as.Date(Match$date, format = "%d/%m/%Y %H:%M")
 Possession = read.csv("datasets/Match_Possesion.csv")
-team_lookup = Team %>% select(team_api_id, team_long_name)
+PositionReference = read.csv("datasets/PositionReference.csv")
+Player = read.csv("datasets/Player.csv")
+Player_Attributes = read.csv("datasets/Player_Attributes.csv")
+team_lookup = Team %>% select(team_api_id, team_long_name, team_short_name)
 league_lookup = League %>% select(country_id, name)
+player_lookup = Player %>% select("player_api_id","player_name")
 
 Final_Possession = Possession %>% filter(elapsed == 90)
+Final_Possession = Final_Possession %>% 
+  group_by(match_id) %>%
+  slice_tail(n = 1) %>%
+  ungroup()
 
-Cleaned_Match = Match %>%
+Full_Match = Match %>%
   left_join(team_lookup, by = c("home_team_api_id" = "team_api_id")) %>%
-  rename(home_team_name = team_long_name) %>%
+  rename(home_team_name = team_long_name, home_team_name_short = team_short_name) %>%
   left_join(team_lookup, by = c("away_team_api_id" = "team_api_id")) %>%
-  rename(away_team_name = team_long_name) %>%
+  rename(away_team_name = team_long_name, away_team_name_short = team_short_name) %>%
   left_join(league_lookup, by = c("league_id" = "country_id")) %>%
   rename(league_name = name)
 
-Cleaned_Match = left_join(Cleaned_Match, Final_Possession, by = c("id" = "match_id"))
+Full_Match = left_join(Full_Match, Final_Possession, by = c("id" = "match_id"))
 
-Cleaned_Match = Cleaned_Match %>%
+Cleaned_Match = Full_Match %>%
   select(season, league_name, home_team_name, away_team_name,
          home_team_goal, away_team_goal, homepos, awaypos)
 
 all_seasons = c("2008/2009", "2009/2010", "2010/2011", "2011/2012",
                 "2012/2013", "2013/2014", "2014/2015", "2015/2016")
+
+##### Getting full player data #####
+current_players_in_match = Full_Match %>% filter(season=="2015/2016") %>%
+  # 1. Pivot the ID, X, and Y columns into a long format
+  pivot_longer(
+    cols = matches("(home|away)_player_(X|Y)?[0-9]+"),
+    names_to = c("side", "type", "index"),
+    # This regex handles the inconsistent 'X1' vs '1' naming
+    names_pattern = "(home|away)_player_(X|Y)?([0-9]+)"
+  ) %>%
+  # 2. Label the ID columns (which have an empty 'type') as "player_id"
+  mutate(type = case_when(
+    type == "X" ~ "X",
+    type == "Y" ~ "Y",
+    TRUE ~ "player_id"
+  )) %>%
+  # 3. Spread X, Y, and player_id into their own columns
+  pivot_wider(names_from = type, values_from = value) %>%
+  # 4. Create the team_id and team_name columns based on the 'side'
+  mutate(
+    team_id = if_else(side == "home", home_team_api_id, away_team_api_id),
+    team_name = if_else(side == "home", home_team_name, away_team_name),
+    team_name_short = if_else(side == "home", home_team_name_short, away_team_name_short)
+    
+  ) %>%
+  # 5. Clean up: keep only the columns you asked for
+  select(player_id, league_name, team_id, team_name, team_name_short, date, side, X, Y) %>%
+  filter(!is.na(player_id)) # Remove empty slots
+
+last_player_match = current_players_in_match %>%
+  group_by(player_id) %>%
+  slice_max(order_by = date, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+Player_Data = left_join(last_player_match,player_lookup, by=c("player_id"="player_api_id")) %>%
+  select(player_id, player_name, league_name, team_id, team_name, team_name_short, X, Y) %>%
+  mutate(position = case_when(
+    Y == 1 ~ "Goalkeeper",
+    Y >= 2 & Y <= 4 ~ "Defender",
+    Y >= 5 & Y <= 8 ~ "Midfielder",
+    Y >= 9 ~ "Attacker",
+    TRUE ~ "Unknown"  # Safety net for unexpected data
+  ))
+
+latest_attributes <- Player_Attributes %>%
+  # Ensure the date column is in the correct Date format
+  mutate(date = as.Date(date)) %>%
+  group_by(player_api_id) %>%
+  # Select the row with the most recent date
+  slice_max(order_by = date, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+Player_Data = Player_Data %>%
+  left_join(latest_attributes, by = c("player_id" = "player_api_id")) %>%
+  select(-c(id, player_fifa_api_id, date, X, Y))
+
 
 # ── Helper Functions ──
 teams_in_league = function(league, season_range) {
