@@ -6,157 +6,17 @@ library(ggpath)
 library(ggimage)
 library(ggiraph)
 
+
 # ── Data Loading ──
-League = read.csv("datasets/League.csv")
-Team = read.csv("datasets/Team.csv")
-Match = read.csv("datasets/Match.csv")
-Match$date = as.Date(Match$date, format = "%d/%m/%Y %H:%M")
-Possession = read.csv("datasets/Match_Possesion.csv")
-PositionReference = read.csv("datasets/PositionReference.csv")
-Player = read.csv("datasets/Player.csv")
-Player$birthday = as.Date(Player$birthday, format = "%Y-%m-%d %H:%M")
-Player_Attributes = read.csv("datasets/Player_Attributes.csv")
-Player_Attributes$date = as.Date(Player_Attributes$date, format = "%Y-%m-%d %H:%M")
-team_lookup = Team %>% select(team_api_id, team_long_name, team_short_name)
-league_lookup = League %>% select(country_id, name)
-player_lookup = Player %>% select("player_api_id","player_name", "birthday")
-
-Final_Possession = Possession %>% filter(elapsed == 90)
-Final_Possession = Final_Possession %>% 
-  group_by(match_id) %>%
-  slice_tail(n = 1) %>%
-  ungroup()
-
-Full_Match = Match %>%
-  left_join(team_lookup, by = c("home_team_api_id" = "team_api_id")) %>%
-  rename(home_team_name = team_long_name, home_team_name_short = team_short_name) %>%
-  left_join(team_lookup, by = c("away_team_api_id" = "team_api_id")) %>%
-  rename(away_team_name = team_long_name, away_team_name_short = team_short_name) %>%
-  left_join(league_lookup, by = c("league_id" = "country_id")) %>%
-  rename(league_name = name)
-
-Full_Match = left_join(Full_Match, Final_Possession, by = c("id" = "match_id"))
-
-Cleaned_Match = Full_Match %>%
-  select(season, league_name, home_team_name, away_team_name,
-         home_team_goal, away_team_goal, homepos, awaypos)
-
-all_seasons = c("2008/2009", "2009/2010", "2010/2011", "2011/2012",
-                "2012/2013", "2013/2014", "2014/2015", "2015/2016")
-##### Getting data regarding improvement #####
-library(lubridate)
-player_yearly_ratings <- Player_Attributes %>%
-  # 1. Ensure date is in Date format and extract the year
-  mutate(
-    date = as.Date(date),
-    year = year(date)
-  ) %>%
-  # 2. Group by player AND year
-  group_by(player_api_id, year) %>%
-  # 3. Pick the latest update for that specific player in that specific year
-  slice_max(order_by = date, n = 1, with_ties = FALSE) %>%
-  # 4. Ungroup and select relevant columns
-  ungroup() %>%
-  select(player_api_id, year, date, overall_rating, potential)
-
-
-
-##### Getting full player data #####
-current_players_in_match = Full_Match %>% filter(season=="2015/2016") %>%
-  # 1. Pivot the ID, X, and Y columns into a long format
-  pivot_longer(
-    cols = matches("(home|away)_player_(X|Y)?[0-9]+"),
-    names_to = c("side", "type", "index"),
-    # This regex handles the inconsistent 'X1' vs '1' naming
-    names_pattern = "(home|away)_player_(X|Y)?([0-9]+)"
-  ) %>%
-  # 2. Label the ID columns (which have an empty 'type') as "player_id"
-  mutate(type = case_when(
-    type == "X" ~ "X",
-    type == "Y" ~ "Y",
-    TRUE ~ "player_id"
-  )) %>%
-  # 3. Spread X, Y, and player_id into their own columns
-  pivot_wider(names_from = type, values_from = value) %>%
-  # 4. Create the team_id and team_name columns based on the 'side'
-  mutate(
-    team_id = if_else(side == "home", home_team_api_id, away_team_api_id),
-    team_name = if_else(side == "home", home_team_name, away_team_name),
-    team_name_short = if_else(side == "home", home_team_name_short, away_team_name_short)
-    
-  ) %>%
-  # 5. Clean up: keep only the columns you asked for
-  select(player_id, league_name, team_id, team_name, team_name_short, date, side, X, Y) %>%
-  filter(!is.na(player_id)) # Remove empty slots
-
-last_player_match = current_players_in_match %>%
-  group_by(player_id) %>%
-  slice_max(order_by = date, n = 1, with_ties = FALSE) %>%
-  ungroup()
-
-Player_Data = left_join(last_player_match,player_lookup, by=c("player_id"="player_api_id")) %>%
-  select(player_id, player_name, birthday, league_name, team_id, team_name, team_name_short, X, Y) %>%
-  mutate(position = case_when(
-    Y == 1 ~ "Goalkeeper",
-    Y >= 2 & Y <= 4 ~ "Defender",
-    Y >= 5 & Y <= 8 ~ "Midfielder",
-    Y >= 9 ~ "Attacker",
-    TRUE ~ "Unknown"  # Safety net for unexpected data
-  ))
-Player_Data$position = factor(Player_Data$position, levels=c("Attacker","Midfielder","Defender","Goalkeeper"))
-Player_Data = Player_Data %>%
-  mutate(age = floor(as.numeric(difftime(as.Date("2016-12-31"), birthday, units = "weeks")) / 52.1775)) %>%
-  select(-birthday)
-
-latest_attributes <- Player_Attributes %>%
-  # Ensure the date column is in the correct Date format
-  mutate(date = as.Date(date)) %>%
-  group_by(player_api_id) %>%
-  # Select the row with the most recent date
-  slice_max(order_by = date, n = 1, with_ties = FALSE) %>%
-  ungroup()
-
-Player_Data = Player_Data %>%
-  left_join(latest_attributes, by = c("player_id" = "player_api_id")) %>%
-  select(-c(id, player_fifa_api_id, date, X, Y))
-
-
-# 1. Start with your yearly ratings dataframe
-player_improvement <- player_yearly_ratings %>%
-  # 1. Group by player and ensure they are in chronological order
-  group_by(player_api_id) %>%
-  arrange(year, .by_group = TRUE) %>%
-  
-  # 2. Calculate the difference (Current Year - Previous Year)
-  mutate(
-    yearly_improvement = overall_rating - lag(overall_rating)
-  ) %>%
-  
-  # 3. Instead of filtering for 2016, grab the latest year available for each player
-  slice_max(order_by = year, n = 1) %>% 
-  
-  # 4. Optional: Handle cases where a player only has 1 year of data
-  # If lag() is NA, it means they are a "New Entry" (improvement = 0 or NA)
-  mutate(yearly_improvement = coalesce(yearly_improvement, 0)) %>%
-  
-  rename(improvement_vs_2015 = yearly_improvement) %>%
-  ungroup()
-
-# 5. Join this back to your Player_Data_Final
-Player_Data = Player_Data %>%
-  left_join(
-    select(player_improvement, player_api_id, improvement_vs_2015), 
-    by = c("player_id" = "player_api_id")
-  )
-
+load("data.RData")
 # ── Helper Functions ──
 teams_in_league = function(league, season_range) {
-  relevant_matches = Cleaned_Match %>% filter(season %in% season_range, league_name == league)
+  relevant_matches = Full_Match %>% filter(season %in% season_range, league_name == league)
   unique(c(relevant_matches$home_team_name, relevant_matches$away_team_name))
 }
 
 calculate_team_rates = function(selected_teams, selected_seasons, side = "Both") {
-  result = Cleaned_Match %>%
+  result = Full_Match %>%
     filter(season %in% selected_seasons) %>%
     filter(home_team_name %in% selected_teams, away_team_name %in% selected_teams) %>%
     bind_rows(
@@ -185,7 +45,7 @@ calculate_team_rates = function(selected_teams, selected_seasons, side = "Both")
 calculate_team_rates_against = function(selected_teams, selected_seasons, against_team, side = "Both") {
   selected_teams_without_against <- selected_teams[!selected_teams == against_team]
 
-  result = Cleaned_Match %>%
+  result = Full_Match %>%
     filter(season %in% selected_seasons) %>%
     filter(
       (home_team_name %in% selected_teams_without_against & away_team_name == against_team) |
@@ -271,11 +131,11 @@ match_plot_against = function(selected_teams, selected_seasons, against_team, si
 }
 
 stats_per_team = function(selected_teams, selected_seasons, side = "Both") {
-  home_stats = Cleaned_Match %>%
+  home_stats = Full_Match %>%
     filter(home_team_name %in% selected_teams, season %in% selected_seasons) %>%
     select(team = home_team_name, scored = home_team_goal, conceded = away_team_goal, pos = homepos)
 
-  away_stats = Cleaned_Match %>%
+  away_stats = Full_Match %>%
     filter(away_team_name %in% selected_teams, season %in% selected_seasons) %>%
     select(team = away_team_name, scored = away_team_goal, conceded = home_team_goal, pos = awaypos)
 
@@ -300,7 +160,7 @@ average_stats_plot = function(selected_teams, selected_seasons, side = "Both") {
                        "\nAvg Goals Conceded: ", round(avg_goals_conceded, 2))
     )
 
-  p <- ggplot(average_stats, aes(x = avg_goals_scored, y = avg_goals_conceded)) +
+  p = ggplot(average_stats, aes(x = avg_goals_scored, y = avg_goals_conceded)) +
     geom_point_interactive(
       aes(size = pos_visual, tooltip = tooltip, data_id = team),
       color = "black", fill = "white", shape = 21, stroke = 1.5
@@ -323,11 +183,11 @@ improvement_plot = function(teams="all", age_range=min(Player_Data$age,na.rm=T):
                                      shape=position,
                                      col=position,
                                      text = paste0(
-                                       "\n Player Name: ", player_name,
-                                       "\n Rating: ", overall_rating,
-                                       "\n Improvement: ", improvement_vs_2015,
-                                       "\n Position: ", position,
-                                       "\n Team: ", team_name
+                                       "Player: ", player_name,
+                                       "\nRating: ", overall_rating,
+                                       "\nImprovement: ", improvement_vs_2015,
+                                       "\nPosition: ", position,
+                                       "\nTeam: ", team_name
                                      ))) +
     geom_jitter(alpha=0.7) + theme_bw() +
     labs(col="Position", shape="",size="") +
@@ -338,7 +198,6 @@ improvement_plot = function(teams="all", age_range=min(Player_Data$age,na.rm=T):
     guides(size = guide_legend(override.aes = list(shape = 16)))
   return(ggplotly(p,tooltip = "text"))
 }
-
 # ── UI ──
 ui <- navbarPage(
   title = "European Football Analytics",
