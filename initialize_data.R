@@ -11,6 +11,10 @@ Player = read.csv("datasets/Player.csv")
 Player$birthday = as.Date(Player$birthday, format = "%Y-%m-%d %H:%M")
 Player_Attributes = read.csv("datasets/Player_Attributes.csv")
 Player_Attributes$date = as.Date(Player_Attributes$date, format = "%Y-%m-%d %H:%M")
+
+# Every player get assigned a rating at the beginning even if they weren't playing
+#So we remove these attributes
+Player_Attributes = Player_Attributes %>% filter(date !=min(Player_Attributes$date)) 
 team_lookup = Team %>% select(team_api_id, team_long_name, team_short_name)
 league_lookup = League %>% select(country_id, name)
 player_lookup = Player %>% select("player_api_id","player_name", "birthday")
@@ -86,7 +90,8 @@ last_player_match = current_players_in_match %>%
 
 Player_Data = left_join(last_player_match,player_lookup, by=c("player_id"="player_api_id")) %>%
   select(player_id, player_name, birthday, league_name, team_id, team_name, team_name_short, X, Y) %>%
-  mutate(position = case_when(
+  mutate(player_name_and_team = paste(Player_Data$player_name, " (",Player_Data$team_name_short,")",sep=""),
+         position = case_when(
     Y == 1 ~ "Goalkeeper",
     Y >= 2 & Y <= 4 ~ "Defender",
     Y >= 5 & Y <= 8 ~ "Midfielder",
@@ -159,3 +164,4 @@ Player_Data = Player_Data %>%
 
 
 save(League, Full_Match, Player_Data, Player_Attributes, all_seasons, file="data.RData")
+
