@@ -9,6 +9,9 @@ library(ggiraph)
 
 # ── Data Loading ──
 load("data.RData")
+min_age = min(Player_Data$age,na.rm=T)
+max_age = max(Player_Data$age,na.rm=T)
+ages = min_age:max_age
 # ── Helper Functions ──
 teams_in_league = function(league, season_range) {
   relevant_matches = Full_Match %>% filter(season %in% season_range, league_name == league)
@@ -147,62 +150,134 @@ stats_per_team = function(selected_teams, selected_seasons, side = "Both") {
     avg_possession = mean(pos, na.rm = TRUE)
   )
 }
-
 average_stats_plot = function(selected_teams, selected_seasons, side = "Both") {
   average_stats = stats_per_team(selected_teams, selected_seasons, side) %>%
     mutate(
       logo_path = paste0("logos/", team, ".png"),
+      # Create a status flag for the border color
+      has_possession = ifelse(is.na(avg_possession), "No Data", "Has Data"),
       pos_display = ifelse(is.na(avg_possession), "No Data", paste0(round(avg_possession, 1), "%")),
+      # Use 50 as a neutral baseline size for "No Data" teams
       pos_visual = ifelse(is.na(avg_possession), 50, avg_possession),
       tooltip = paste0("Team: ", team,
                        "\nPossession: ", pos_display,
                        "\nAvg Goals Scored: ", round(avg_goals_scored, 2),
                        "\nAvg Goals Conceded: ", round(avg_goals_conceded, 2))
     )
-
+  
   p = ggplot(average_stats, aes(x = avg_goals_scored, y = avg_goals_conceded)) +
+    # Map 'has_possession' to the color aesthetic (the border)
     geom_point_interactive(
-      aes(size = pos_visual, tooltip = tooltip, data_id = team),
-      color = "black", fill = "white", shape = 21, stroke = 1.5
+      aes(size = pos_visual, 
+          tooltip = tooltip, 
+          data_id = team,
+          color = has_possession), # Mapping color here
+      fill = "white", 
+      shape = 21, 
+      stroke = 2.5 # Increased thickness to make the red/black stand out
     ) +
     geom_from_path(aes(path = logo_path, width = pos_visual / 1500)) +
     geom_abline(slope = 1, linetype = "dashed", alpha = 0.4) +
     theme_bw() +
-    labs(x = "Average goals scored", y = "Average goals conceded", size = "Average possession rate")
-  girafe(ggobj = p, options = list(opts_sizing(rescale = TRUE)))
+    # Define the colors: Black for valid data, Red for "No Data"
+    scale_color_manual(values = c("Has Data" = "black", "No Data" = "red")) +
+    scale_x_continuous(expand = expansion(mult = 0.15)) +
+    scale_y_continuous(expand = expansion(mult = 0.15)) +
+    labs(x = "Average goals scored", 
+         y = "Average goals conceded", 
+         size = "Average possession rate",
+         color = "Data Status")
+  
+  girafe(ggobj = p, 
+         width_svg = 8, 
+         height_svg = 6,
+         options = list(
+           opts_sizing(rescale = TRUE, width = 1.0)
+         ))
 }
-
-improvement_plot = function(teams="all", age_range=min(Player_Data$age,na.rm=T):max(Player_Data$age,na.rm=T),min_improvement=5) {
-  Subset_Player_data = Player_Data %>% filter(age %in% age_range, improvement_vs_2015 >= min_improvement | is.na(improvement_vs_2015))
-  if (teams!="all") {
-    Subset_Player_data = Subset_Player_data %>% filter(team_name %in% teams)
+improvement_plot = function(teams="all", age_range=min_age:max_age,min_improvement=5) {
+  Subset_Player_Data = Player_Data %>% filter(age %in% age_range, improvement_vs_2015 >= min_improvement | is.na(improvement_vs_2015))
+  if (!identical(teams, "all")) {
+    Subset_Player_Data = Subset_Player_Data %>% filter(team_name %in% teams)
   }
-  p = ggplot(Subset_Player_data, aes(x=age,
+  p = ggplot(Subset_Player_Data, aes(x=age,
                                      y=overall_rating,
                                      size=improvement_vs_2015,
                                      shape=position,
                                      col=position,
+                                     key = player_id,
                                      text = paste0(
                                        "Player: ", player_name,
                                        "\nRating: ", overall_rating,
+                                       "\nAge: ", age,
                                        "\nImprovement: ", improvement_vs_2015,
                                        "\nPosition: ", position,
                                        "\nTeam: ", team_name
                                      ))) +
     geom_jitter(alpha=0.7) + theme_bw() +
-    labs(col="Position", shape="",size="") +
+    labs(col="Position", x="Age", y="Overall rating", shape="",size="") +
     scale_color_manual(values= c("Attacker" ="#ece134",
                                  "Midfielder" = "#de8e08",
                                  "Defender" ="#138f60",
                                  "Goalkeeper"="#48a4e3")) +
     guides(size = guide_legend(override.aes = list(shape = 16)))
-  return(ggplotly(p,tooltip = "text"))
+  return(ggplotly(p,tooltip = "text", source = "scatter"))
 }
+improvement_line_plot = function(player_ids) {
+  player_ids = as.numeric(player_ids)
+  Subset_Player_Data = Player_Data %>% filter(player_id %in% player_ids) %>%
+    select(player_id, player_name, team_name, player_name_and_team, position)
+  Subset_Player_Attributes = Player_Attributes %>% filter(player_api_id %in% player_ids) %>%
+    select(player_fifa_api_id, player_api_id, date, overall_rating, potential)
+  Player_Improvement = left_join(Subset_Player_Attributes, Subset_Player_Data,
+                                       by = c("player_api_id" = "player_id"))
+  p = ggplot(Player_Improvement, aes(x = date, 
+                                     y = overall_rating, 
+                                     col = player_name_and_team,
+                                     group = player_name_and_team, 
+                                     text = paste0(
+                                       "Player: ", player_name,
+                                       "\nDate: ", date,
+                                       "\nOverall Rating: ", overall_rating,
+                                       "\nPosition: ", position
+                                     ))) +
+    geom_line(linewidth = 1, alpha=0.9) + geom_point(size=1,alpha = 0.9) +
+    theme_bw() + 
+    labs(col = "Player", x="Date", y="Overall rating")
+  
+  return(ggplotly(p, tooltip = "text"))
+}
+improvement_line_plot(c(30981,30893,107417))
+
+
 # ── UI ──
 ui <- navbarPage(
   title = "European Football Analytics",
   theme = NULL,
-
+  tabPanel("Player Improvement",
+           fluidRow(
+             column(3, sliderTextInput(
+               inputId = "improv_age_rng", label = "Select Age Range",
+               choices = ages, selected = c(min_age, max_age), grid = TRUE)
+               ),
+             column(3, selectInput("improv_league", "Select League", 
+                                   choices = c("All", League$name), 
+                                   selected = "All")),
+             column(3, numericInput("improv_min", "Minimum Rating Increase", value = 5, min = -100, max = 100))
+             ),
+           hr(),
+           fluidRow(
+             column(7, 
+                    h4("Player Ratings Overview"),
+                    plotlyOutput("improv_improvement_plot")
+             ),
+             column(5, 
+                    h4("Improvement over time (Select players)"),
+                    plotlyOutput("improv_line_plot")
+             )
+           )
+           ),
+  
   tabPanel("League Performance",
     fluidRow(
       column(3, selectInput("perf_league", "Select League", League$name)),
@@ -253,7 +328,7 @@ ui <- navbarPage(
     ),
     hr(),
     fluidRow(
-      column(8, offset = 2,
+      column(12,
         h4("Average Possession, Goals Scored & Conceded"),
         girafeOutput("stats_plot")
       )
@@ -263,7 +338,64 @@ ui <- navbarPage(
 
 # ── Server ──
 server <- function(input, output, session) {
-
+  # ── Player Improvement tab ──
+  improv_age <- reactive({
+    req(input$improv_age_rng)
+    start_idx = which(ages == input$improv_age_rng[1])
+    end_idx = which(ages == input$improv_age_rng[2])
+    ages[start_idx:end_idx]
+  })
+  
+  improv_filtered_teams <- reactive({
+    if (input$improv_league == "All") {
+      return("all")
+    } else {
+      # We use all_seasons here to ensure we get any team 
+      # that has ever been in that league in our data
+      return(teams_in_league(input$improv_league, all_seasons))
+    }
+  })
+  
+  
+  # 1. Capture ALL selected player IDs
+  selected_player_ids <- reactive({
+    # Use "plotly_selected" instead of "plotly_click"
+    ed <- event_data("plotly_selected", source = "scatter")
+    
+    if (is.null(ed)) return(NULL)
+    
+    # ed$key will now be a vector of all IDs within the selection
+    return(ed$key) 
+  })
+  
+  # 2. Update the Overview Plot registration
+  output$improv_improvement_plot <- renderPlotly({
+    req(input$improv_min, input$improv_age_rng)
+    
+    p <- improvement_plot(
+      teams = improv_filtered_teams(),
+      age_range = improv_age(),
+      min_improvement = input$improv_min
+    )
+    
+    p %>% event_register("plotly_selected")
+  })
+  
+  output$improv_line_plot <- renderPlotly({
+    pids <- selected_player_ids()
+    
+    if (is.null(pids)) {
+      return(
+        plot_ly(type = "scatter", mode = "markers") %>% 
+          layout(annotations = list(
+            text = "Use the Lasso or Box Select tool<br>to select multiple players", 
+            showarrow = FALSE, x = 0.5, y = 0.5, xref='paper', yref='paper'
+          ))
+      )
+    }
+    improvement_line_plot(pids)
+  })
+  
   # ── League Performance tab ──
   perf_seasons <- reactive({
     req(input$perf_season_rng)
