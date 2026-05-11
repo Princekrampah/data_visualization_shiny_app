@@ -188,12 +188,25 @@ average_stats_plot = function(selected_teams, selected_seasons, side = "Both") {
          size = "Average possession rate",
          color = "Data Status")
   
-  girafe(ggobj = p, 
-         width_svg = 8, 
-         height_svg = 6,
-         options = list(
-           opts_sizing(rescale = TRUE, width = 1.0)
-         ))
+  girafe(
+    ggobj = p, 
+    width_svg = 8, 
+    height_svg = 6,
+    options = list(
+      opts_zoom(max = 5),
+      opts_selection(type = "none"), 
+      
+      # This part disables the rectangular zoom and pan buttons 
+      # but keeps the "Reset" and "Download" buttons
+      opts_toolbar(
+        position = "topright", 
+        saveaspng = TRUE,
+        hidden = c("zoom_rect", "zoom_in", "zoom_out", "pan")
+      ),
+      
+      opts_sizing(rescale = TRUE, width = 1.0)
+    )
+  )
 }
 improvement_plot = function(teams="all", age_range=min_age:max_age,min_improvement=5) {
   Subset_Player_Data = Player_Data %>% filter(age %in% age_range, improvement_vs_2015 >= min_improvement | is.na(improvement_vs_2015))
@@ -247,8 +260,54 @@ improvement_line_plot = function(player_ids) {
   
   return(ggplotly(p, tooltip = "text"))
 }
-improvement_line_plot(c(30981,30893,107417))
 
+radar_plot = function(player_ids) {
+  plot_data = Player_Data %>% 
+    filter(player_id %in% player_ids) %>%
+    select(player_name, team_name, 
+           `Short Passing` = short_passing, 
+           `Long Passing` = long_passing, 
+           Stamina = stamina, 
+           Crossing = crossing, 
+           `Ball Control` = ball_control)
+  
+  plot_data_long = plot_data %>%
+    pivot_longer(cols = -c(player_name, team_name), 
+                 names_to = "attribute", 
+                 values_to = "value")
+  
+  min_val = min(50,round(min(plot_data_long$value) / 10)*10)
+  
+  p = plot_ly(type = "scatterpolar")
+  
+  colors = c("#ece134", "#de8e08", "#138f60")
+  players = unique(plot_data_long$player_name)
+  
+  for(i in 1:length(players)) {
+    player_subset = plot_data_long %>% filter(player_name == players[i])
+    
+    player_subset = rbind(player_subset, player_subset[1,])
+    
+    p = p %>% add_trace(
+      r = player_subset$value,
+      theta = player_subset$attribute,
+      name = players[i],
+      line = list(color = colors[i]),
+      marker = list(color = colors[i]),
+      text = paste0("Player: ", player_subset$player_name, 
+                    "\nTeam: ", player_subset$team_name, 
+                    "\nAttribute: ", player_subset$attribute,
+                    "\nValue: ", player_subset$value),
+      hoverinfo = "text"
+    )
+  }
+  
+  p = p %>% layout(
+    polar = list(radialaxis = list(visible = T,range = c(min_val, 100))),
+    showlegend = TRUE)
+  
+  return(p)
+}
 
 # ── UI ──
 ui <- navbarPage(
@@ -328,11 +387,26 @@ ui <- navbarPage(
     ),
     hr(),
     fluidRow(
-      column(12,
+      column(6, offset=3,
         h4("Average Possession, Goals Scored & Conceded"),
         girafeOutput("stats_plot")
       )
     )
+  ),
+  tabPanel("Player Comparison Radar",
+           fluidRow(
+             column(4, selectizeInput("radar_player_A", "Search Player A", 
+                                      choices = NULL, 
+                                      options = list(placeholder = 'Type to search...'))),
+             column(4, selectizeInput("radar_player_B", "Search Player B", 
+                                      choices = NULL, 
+                                      options = list(placeholder = 'Type to search...'))),
+             column(4, selectizeInput("radar_player_C", "Search Player C", 
+                                      choices = NULL, 
+                                      options = list(placeholder = 'Type to search...')))
+           ),
+           hr(),
+           plotlyOutput("radar_comparison_plot")
   )
 )
 
@@ -350,26 +424,20 @@ server <- function(input, output, session) {
     if (input$improv_league == "All") {
       return("all")
     } else {
-      # We use all_seasons here to ensure we get any team 
-      # that has ever been in that league in our data
       return(teams_in_league(input$improv_league, all_seasons))
     }
   })
   
   
-  # 1. Capture ALL selected player IDs
   selected_player_ids <- reactive({
-    # Use "plotly_selected" instead of "plotly_click"
-    ed <- event_data("plotly_selected", source = "scatter")
+    ed = event_data("plotly_selected", source = "scatter")
     
     if (is.null(ed)) return(NULL)
     
-    # ed$key will now be a vector of all IDs within the selection
     return(ed$key) 
   })
   
-  # 2. Update the Overview Plot registration
-  output$improv_improvement_plot <- renderPlotly({
+  output$improv_improvement_plot = renderPlotly({
     req(input$improv_min, input$improv_age_rng)
     
     p <- improvement_plot(
@@ -381,8 +449,8 @@ server <- function(input, output, session) {
     p %>% event_register("plotly_selected")
   })
   
-  output$improv_line_plot <- renderPlotly({
-    pids <- selected_player_ids()
+  output$improv_line_plot = renderPlotly({
+    pids = selected_player_ids()
     
     if (is.null(pids)) {
       return(
@@ -454,6 +522,27 @@ server <- function(input, output, session) {
   output$stats_plot = renderGirafe({
     req(input$stats_teams, input$stats_side)
     average_stats_plot(input$stats_teams, stats_seasons(), input$stats_side)
+  })
+  
+  # ── Radar chart tab ──
+  player_choices <- sort(unique(Player_Data$player_name_and_team))
+  
+  updateSelectizeInput(session, "radar_player_A",selected = "", choices = player_choices, server = TRUE)
+  updateSelectizeInput(session, "radar_player_B",selected = "", choices = player_choices, server = TRUE)
+  updateSelectizeInput(session, "radar_player_C",selected = "", choices = player_choices, server = TRUE)
+  
+  output$radar_comparison_plot = renderPlotly({
+    selected = c(input$radar_player_A, input$radar_player_B, input$radar_player_C)
+    
+    selected = selected[selected != "" & !is.na(selected)]
+    
+    req(length(selected) > 0)
+    
+    pids <- Player_Data %>%
+      filter(player_name_and_team %in% selected) %>%
+      pull(player_id)
+    
+    radar_plot(pids)
   })
 }
 
