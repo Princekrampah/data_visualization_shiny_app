@@ -308,6 +308,61 @@ radar_plot = function(player_ids) {
   
   return(p)
 }
+radar_plot = function(player_ids) {
+  # 1. Filter and Rename
+  plot_data = Player_Data %>% 
+    filter(player_id %in% player_ids) %>%
+    select(player_name, team_name, 
+           `Short Passing` = short_passing, 
+           `Long Passing` = long_passing, 
+           Stamina = stamina, 
+           Crossing = crossing, 
+           `Ball Control` = ball_control)
+  
+  # 2. Calculate Average Score per player BEFORE pivoting
+  # We use rowMeans on only the numeric columns
+  plot_data = plot_data %>%
+    rowwise() %>%
+    mutate(avg_score = round(mean(c_across(`Short Passing`:`Ball Control`)), 1)) %>%
+    ungroup()
+  
+  plot_data_long = plot_data %>%
+    pivot_longer(cols = -c(player_name, team_name, avg_score), 
+                 names_to = "attribute", 
+                 values_to = "value")
+  
+  min_val = min(50, round(min(plot_data_long$value) / 10) * 10)
+  
+  p = plot_ly(type = "scatterpolar")
+  
+  colors = c("#ece134", "#de8e08", "#138f60")
+  players = unique(plot_data_long$player_name)
+  
+  for(i in 1:length(players)) {
+    player_subset = plot_data_long %>% filter(player_name == players[i])
+    player_subset = rbind(player_subset, player_subset[1,])
+    
+    p = p %>% add_trace(
+      r = player_subset$value,
+      theta = player_subset$attribute,
+      name = paste0(players[i], " (Avg: ", player_subset$avg_score[1], ")"),
+      name = players[i],
+      line = list(color = colors[i], width = 3),
+      marker = list(color = colors[i]),
+      text = paste0("Player: ", player_subset$player_name, 
+                    "\nTeam: ", player_subset$team_name, 
+                    "\nAttribute: ", player_subset$attribute,
+                    "\nValue: ", player_subset$value),
+      hoverinfo = "text"
+    )
+  }
+  
+  p = p %>% layout(
+    polar = list(radialaxis = list(visible = T, range = c(min_val, 100))),
+    showlegend = TRUE)
+  
+  return(p)
+}
 
 # ── UI ──
 ui <- navbarPage(
@@ -406,7 +461,25 @@ ui <- navbarPage(
                                       options = list(placeholder = 'Type to search...')))
            ),
            hr(),
-           plotlyOutput("radar_comparison_plot")
+           fluidRow(
+             column(8, 
+                    plotlyOutput("radar_comparison_plot")
+             ),
+             column(4,
+                    wellPanel(
+                      h4("Attribute Definitions"),
+                      tags$ul(
+                        tags$li(tags$b("Short Passing:"), " Accuracy and speed of passes over short distances."),
+                        tags$li(tags$b("Long Passing:"), " Accuracy and speed of passes over long distances."),
+                        tags$li(tags$b("Stamina:"), " The rate at which a player tires during a match."),
+                        tags$li(tags$b("Crossing:"), " Accuracy of balls played from areas ousitde the box into the box."),
+                        tags$li(tags$b("Ball Control:"), " Ability to keep the ball under control when pressured.")
+                      ),
+                      hr(),
+                      tags$p(tags$i("Note: Values are based on FIFA attributes (0-100 scale)."))
+                    )
+             )
+           )
   )
 )
 
