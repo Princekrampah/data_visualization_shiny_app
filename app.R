@@ -5,14 +5,40 @@ library(shinyWidgets)
 library(ggpath)
 library(ggimage)
 library(ggiraph)
+library(bslib)
 
 
-# ── Data Loading ──
+# Data Loading
 load("data.RData")
 min_age = min(Player_Data$age,na.rm=T)
 max_age = max(Player_Data$age,na.rm=T)
 ages = min_age:max_age
-# ── Helper Functions ──
+# Plot Theme
+dark_theme <- theme_minimal(base_size = 13) +
+  theme(
+    plot.background = element_rect(fill = "transparent", color = NA),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid.major = element_line(color = "#233545", linewidth = 0.4),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(color = "#8fa8be"),
+    axis.title = element_text(color = "#c5d0db"),
+    legend.background = element_rect(fill = "transparent", color = NA),
+    legend.text = element_text(color = "#c5d0db"),
+    legend.title = element_text(color = "#e0e6ed")
+  )
+
+plotly_dark_layout <- function(p) {
+  p %>% layout(
+    paper_bgcolor = "transparent",
+    plot_bgcolor = "transparent",
+    font = list(color = "#c5d0db"),
+    xaxis = list(gridcolor = "#233545", zerolinecolor = "#233545"),
+    yaxis = list(gridcolor = "#233545", zerolinecolor = "#233545"),
+    legend = list(font = list(color = "#c5d0db"))
+  )
+}
+
+# Helper Functions
 teams_in_league = function(league, season_range) {
   relevant_matches = Full_Match %>% filter(season %in% season_range, league_name == league)
   unique(c(relevant_matches$home_team_name, relevant_matches$away_team_name))
@@ -97,13 +123,13 @@ match_plot = function(selected_teams, selected_seasons, side = "Both") {
     x = team, y = perc_label, fill = result_clean,
     text = paste0("Team: ", team, "<br>Result: ", result_clean, "<br>Rate: ", perc_label, "%")
   )) +
-    geom_bar(position = "stack", stat = "identity", col = "black") +
+    geom_bar(position = "stack", stat = "identity", col = "#0f1923", linewidth = 0.3) +
     coord_flip() +
-    theme_bw() +
+    dark_theme +
     scale_fill_manual(name = "Result",
-                      values = c("Loss" = "#de8e08", "Draw" = "#ece134", "Win" = "#138f60")) +
+                      values = c("Loss" = "#e74c3c", "Draw" = "#f39c12", "Win" = "#1abc54")) +
     labs(y = "Percentage (%)", x = "Team")
-  ggplotly(p, tooltip = "text")
+  ggplotly(p, tooltip = "text") %>% plotly_dark_layout()
 }
 
 match_plot_against = function(selected_teams, selected_seasons, against_team, side = "Both") {
@@ -124,13 +150,13 @@ match_plot_against = function(selected_teams, selected_seasons, against_team, si
     x = team, y = perc_label, fill = result_clean,
     text = paste0("Team: ", team, "<br>Result: ", result_clean, "<br>Rate: ", perc_label, "%")
   )) +
-    geom_bar(position = "stack", stat = "identity", col = "black") +
+    geom_bar(position = "stack", stat = "identity", col = "#0f1923", linewidth = 0.3) +
     coord_flip() +
-    theme_bw() +
+    dark_theme +
     scale_fill_manual(name = "Result",
-                      values = c("Loss" = "#de8e08", "Draw" = "#ece134", "Win" = "#138f60")) +
+                      values = c("Loss" = "#e74c3c", "Draw" = "#f39c12", "Win" = "#1abc54")) +
     labs(y = "Percentage (%)", x = "Team")
-  ggplotly(p, tooltip = "text")
+  ggplotly(p, tooltip = "text") %>% plotly_dark_layout()
 }
 
 stats_per_team = function(selected_teams, selected_seasons, side = "Both") {
@@ -166,25 +192,23 @@ average_stats_plot = function(selected_teams, selected_seasons, side = "Both") {
     )
   
   p = ggplot(average_stats, aes(x = avg_goals_scored, y = avg_goals_conceded)) +
-    # Map 'has_possession' to the color aesthetic (the border)
     geom_point_interactive(
-      aes(size = pos_visual, 
-          tooltip = tooltip, 
+      aes(size = pos_visual,
+          tooltip = tooltip,
           data_id = team,
-          color = has_possession), # Mapping color here
-      fill = "white", 
-      shape = 21, 
-      stroke = 2.5 # Increased thickness to make the red/black stand out
+          color = has_possession),
+      fill = "#172633",
+      shape = 21,
+      stroke = 2.5
     ) +
     geom_from_path(aes(path = logo_path, width = pos_visual / 1500)) +
-    geom_abline(slope = 1, linetype = "dashed", alpha = 0.4) +
-    theme_bw() +
-    # Define the colors: Black for valid data, Red for "No Data"
-    scale_color_manual(values = c("Has Data" = "black", "No Data" = "red")) +
+    geom_abline(slope = 1, linetype = "dashed", alpha = 0.3, color = "#5e7a90") +
+    dark_theme +
+    scale_color_manual(values = c("Has Data" = "#1abc54", "No Data" = "#e74c3c")) +
     scale_x_continuous(expand = expansion(mult = 0.15)) +
     scale_y_continuous(expand = expansion(mult = 0.15)) +
-    labs(x = "Average goals scored", 
-         y = "Average goals conceded", 
+    labs(x = "Average goals scored",
+         y = "Average goals conceded",
          size = "Average possession rate",
          color = "Data Status")
   
@@ -227,14 +251,14 @@ improvement_plot = function(teams="all", age_range=min_age:max_age,min_improveme
                                        "\nPosition: ", position,
                                        "\nTeam: ", team_name
                                      ))) +
-    geom_jitter(alpha=0.7) + theme_bw() +
+    geom_jitter(alpha=0.75) + dark_theme +
     labs(col="Position", x="Age", y="Overall rating", shape="",size="") +
-    scale_color_manual(values= c("Attacker" ="#ece134",
-                                 "Midfielder" = "#de8e08",
-                                 "Defender" ="#138f60",
-                                 "Goalkeeper"="#48a4e3")) +
+    scale_color_manual(values= c("Attacker" ="#f1c40f",
+                                 "Midfielder" = "#e67e22",
+                                 "Defender" ="#1abc54",
+                                 "Goalkeeper"="#3498db")) +
     guides(size = guide_legend(override.aes = list(shape = 16)))
-  return(ggplotly(p,tooltip = "text", source = "scatter"))
+  return(ggplotly(p,tooltip = "text", source = "scatter") %>% plotly_dark_layout())
 }
 improvement_line_plot = function(player_ids) {
   player_ids = as.numeric(player_ids)
@@ -255,10 +279,10 @@ improvement_line_plot = function(player_ids) {
                                        "\nPosition: ", position
                                      ))) +
     geom_line(linewidth = 1, alpha=0.9) + geom_point(size=1,alpha = 0.9) +
-    theme_bw() + 
+    dark_theme +
     labs(col = "Player", x="Date", y="Overall rating")
-  
-  return(ggplotly(p, tooltip = "text"))
+
+  return(ggplotly(p, tooltip = "text") %>% plotly_dark_layout())
 }
 
 radar_plot = function(player_ids) {
@@ -271,56 +295,6 @@ radar_plot = function(player_ids) {
            Crossing = crossing, 
            `Ball Control` = ball_control)
   
-  plot_data_long = plot_data %>%
-    pivot_longer(cols = -c(player_name, team_name), 
-                 names_to = "attribute", 
-                 values_to = "value")
-  
-  min_val = min(50,round(min(plot_data_long$value) / 10)*10)
-  
-  p = plot_ly(type = "scatterpolar")
-  
-  colors = c("#ece134", "#de8e08", "#138f60")
-  players = unique(plot_data_long$player_name)
-  
-  for(i in 1:length(players)) {
-    player_subset = plot_data_long %>% filter(player_name == players[i])
-    
-    player_subset = rbind(player_subset, player_subset[1,])
-    
-    p = p %>% add_trace(
-      r = player_subset$value,
-      theta = player_subset$attribute,
-      name = players[i],
-      line = list(color = colors[i]),
-      marker = list(color = colors[i]),
-      text = paste0("Player: ", player_subset$player_name, 
-                    "\nTeam: ", player_subset$team_name, 
-                    "\nAttribute: ", player_subset$attribute,
-                    "\nValue: ", player_subset$value),
-      hoverinfo = "text"
-    )
-  }
-  
-  p = p %>% layout(
-    polar = list(radialaxis = list(visible = T,range = c(min_val, 100))),
-    showlegend = TRUE)
-  
-  return(p)
-}
-radar_plot = function(player_ids) {
-  # 1. Filter and Rename
-  plot_data = Player_Data %>% 
-    filter(player_id %in% player_ids) %>%
-    select(player_name, team_name, 
-           `Short Passing` = short_passing, 
-           `Long Passing` = long_passing, 
-           Stamina = stamina, 
-           Crossing = crossing, 
-           `Ball Control` = ball_control)
-  
-  # 2. Calculate Average Score per player BEFORE pivoting
-  # We use rowMeans on only the numeric columns
   plot_data = plot_data %>%
     rowwise() %>%
     mutate(avg_score = round(mean(c_across(`Short Passing`:`Ball Control`)), 1)) %>%
@@ -335,157 +309,479 @@ radar_plot = function(player_ids) {
   
   p = plot_ly(type = "scatterpolar")
   
-  colors = c("#ece134", "#de8e08", "#138f60")
+  colors = c("#1abc54", "#3498db", "#f39c12")
   players = unique(plot_data_long$player_name)
-  
+
   for(i in 1:length(players)) {
     player_subset = plot_data_long %>% filter(player_name == players[i])
     player_subset = rbind(player_subset, player_subset[1,])
-    
+
     p = p %>% add_trace(
       r = player_subset$value,
       theta = player_subset$attribute,
       name = paste0(players[i], " (Avg: ", player_subset$avg_score[1], ")"),
-      name = players[i],
       line = list(color = colors[i], width = 3),
       marker = list(color = colors[i]),
-      text = paste0("Player: ", player_subset$player_name, 
-                    "\nTeam: ", player_subset$team_name, 
+      fillcolor = paste0(colors[i], "33"),
+      fill = "toself",
+      text = paste0("Player: ", player_subset$player_name,
+                    "\nTeam: ", player_subset$team_name,
                     "\nAttribute: ", player_subset$attribute,
                     "\nValue: ", player_subset$value),
       hoverinfo = "text"
     )
   }
-  
+
   p = p %>% layout(
-    polar = list(radialaxis = list(visible = T, range = c(min_val, 100))),
-    showlegend = TRUE)
-  
+    paper_bgcolor = "transparent",
+    plot_bgcolor = "transparent",
+    font = list(color = "#c5d0db"),
+    polar = list(
+      bgcolor = "transparent",
+      radialaxis = list(
+        visible = TRUE,
+        range = c(min_val, 100),
+        gridcolor = "#233545",
+        color = "#8fa8be"
+      ),
+      angularaxis = list(
+        gridcolor = "#233545",
+        color = "#c5d0db"
+      )
+    ),
+    legend = list(font = list(color = "#c5d0db")),
+    showlegend = TRUE
+  )
+
   return(p)
 }
 
-# ── UI ──
-ui <- navbarPage(
-  title = "European Football Analytics",
-  theme = NULL,
-  tabPanel("Player Improvement",
-           fluidRow(
-             column(3, sliderTextInput(
-               inputId = "improv_age_rng", label = "Select Age Range",
-               choices = ages, selected = c(min_age, max_age), grid = TRUE)
-               ),
-             column(3, selectInput("improv_league", "Select League", 
-                                   choices = c("All", League$name), 
-                                   selected = "All")),
-             column(3, numericInput("improv_min", "Minimum Rating Increase", value = 5, min = -100, max = 100))
-             ),
-           hr(),
-           fluidRow(
-             column(7, 
-                    h4("Player Ratings Overview"),
-                    plotlyOutput("improv_improvement_plot")
-             ),
-             column(5, 
-                    h4("Improvement over time (Select players)"),
-                    plotlyOutput("improv_line_plot")
-             )
-           )
-           ),
-  
-  tabPanel("League Performance",
-    fluidRow(
-      column(3, selectInput("perf_league", "Select League", League$name)),
-      column(3, selectInput("perf_against_team", "Compare Against Team", choices = NULL)),
-      column(3, sliderTextInput(
-        inputId = "perf_season_rng", label = "Select Season Range",
-        choices = all_seasons, selected = c("2008/2009", "2015/2016"), grid = TRUE
-      )),
-      column(3, radioButtons("perf_side", "Match Side",
-                             choices = c("Both", "Home", "Away"), selected = "Both", inline = TRUE))
+# Custom CSS
+app_css <- "
+body {
+  background-color: #0f1923;
+  color: #e0e6ed;
+}
+
+.navbar {
+  border-bottom: 2px solid #1abc54 !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+
+.navbar-brand {
+  font-weight: 700 !important;
+  letter-spacing: 0.5px;
+}
+
+.card, .bslib-card {
+  background-color: #172633 !important;
+  border: 1px solid #233545 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+
+.card-header {
+  background-color: #1c3040 !important;
+  border-bottom: 1px solid #233545 !important;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border-radius: 12px 12px 0 0 !important;
+}
+
+.filter-panel {
+  background: linear-gradient(135deg, #1c3040 0%, #172633 100%);
+  border: 1px solid #233545;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.filter-panel label {
+  color: #8fa8be !important;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.form-control, .selectize-input, .selectize-dropdown {
+  background-color: #0f1923 !important;
+  border: 1px solid #2d4458 !important;
+  color: #e0e6ed !important;
+  border-radius: 8px !important;
+}
+
+.selectize-input.focus {
+  border-color: #1abc54 !important;
+  box-shadow: 0 0 0 2px rgba(26,188,84,0.2) !important;
+}
+
+.selectize-dropdown-content .option {
+  color: #e0e6ed !important;
+}
+
+.selectize-dropdown-content .active {
+  background-color: #1abc54 !important;
+  color: #fff !important;
+}
+
+.btn-default, .dropdown-toggle {
+  background-color: #0f1923 !important;
+  border: 1px solid #2d4458 !important;
+  color: #e0e6ed !important;
+  border-radius: 8px !important;
+}
+
+.bootstrap-select .dropdown-menu {
+  background-color: #172633 !important;
+  border: 1px solid #2d4458 !important;
+}
+
+.bootstrap-select .dropdown-menu li a {
+  color: #e0e6ed !important;
+}
+
+.bootstrap-select .dropdown-menu li.selected a,
+.bootstrap-select .dropdown-menu li a:hover {
+  background-color: #1abc54 !important;
+  color: #fff !important;
+}
+
+.radio-inline, .radio label, .form-check-label {
+  color: #c5d0db !important;
+}
+
+.btn-check:checked + .btn {
+  background-color: #1abc54 !important;
+  border-color: #1abc54 !important;
+}
+
+.irs--shiny .irs-bar {
+  background: #1abc54 !important;
+  border-top: 1px solid #1abc54 !important;
+  border-bottom: 1px solid #1abc54 !important;
+}
+
+.irs--shiny .irs-from, .irs--shiny .irs-to, .irs--shiny .irs-single {
+  background-color: #1abc54 !important;
+}
+
+.irs--shiny .irs-handle {
+  border: 2px solid #1abc54 !important;
+  background-color: #172633 !important;
+}
+
+.irs--shiny .irs-line {
+  background-color: #233545 !important;
+  border: none !important;
+}
+
+.irs--shiny .irs-grid-text {
+  color: #5e7a90 !important;
+}
+
+.section-title {
+  color: #1abc54;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #233545;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title .icon {
+  font-size: 1.1rem;
+}
+
+.attr-panel {
+  background: linear-gradient(135deg, #1c3040 0%, #172633 100%);
+  border: 1px solid #233545;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.attr-panel h5 {
+  color: #1abc54;
+  font-weight: 700;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #233545;
+}
+
+.attr-panel ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.attr-panel li {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(35,53,69,0.6);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #b0c4d8;
+}
+
+.attr-panel li:last-child {
+  border-bottom: none;
+}
+
+.attr-panel li strong {
+  color: #e0e6ed;
+}
+
+.attr-panel .note {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background-color: rgba(26,188,84,0.08);
+  border-left: 3px solid #1abc54;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.85rem;
+  color: #8fa8be;
+}
+
+input[type='number'] {
+  background-color: #0f1923 !important;
+  border: 1px solid #2d4458 !important;
+  color: #e0e6ed !important;
+  border-radius: 8px !important;
+}
+
+input[type='number']:focus {
+  border-color: #1abc54 !important;
+  box-shadow: 0 0 0 2px rgba(26,188,84,0.2) !important;
+}
+
+.tab-content > .tab-pane {
+  padding: 24px 8px;
+}
+
+.nav-link {
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: color 0.2s;
+}
+
+.nav-link:hover {
+  color: #1abc54 !important;
+}
+
+.modebar {
+  background: transparent !important;
+}
+
+.well {
+  background-color: #172633 !important;
+  border: 1px solid #233545 !important;
+  border-radius: 12px !important;
+}
+
+hr {
+  border-color: #233545 !important;
+  opacity: 0.6;
+}
+
+.bootstrap-select .filter-option-inner-inner {
+  color: #e0e6ed !important;
+}
+
+.bs-actionsbox .btn-group .btn {
+  background-color: #1c3040 !important;
+  color: #1abc54 !important;
+  border-color: #233545 !important;
+}
+
+.selectize-dropdown .optgroup-header {
+  background-color: #1c3040 !important;
+  color: #1abc54 !important;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 8px 12px !important;
+  border-top: 1px solid #233545;
+}
+
+.selectize-dropdown .optgroup:first-child .optgroup-header {
+  border-top: none;
+}
+"
+
+app_theme <- bs_theme(
+  version = 5,
+  bg = "#0f1923",
+  fg = "#e0e6ed",
+  primary = "#1abc54",
+  secondary = "#233545",
+  success = "#1abc54",
+  info = "#48a4e3",
+  warning = "#de8e08",
+  danger = "#e74c3c",
+  base_font = font_google("Inter"),
+  heading_font = font_google("Inter"),
+  font_scale = 0.95,
+  "navbar-bg" = "#14202c"
+)
+
+ui <- page_navbar(
+  title = tags$span(
+    tags$strong("European Football Analytics")
+  ),
+  theme = app_theme,
+  fillable = FALSE,
+  header = tags$head(tags$style(HTML(app_css))),
+
+  nav_panel(
+    title = "Player Improvement",
+    icon = icon("chart-line"),
+    div(class = "filter-panel",
+      fluidRow(
+        column(4, sliderTextInput(
+          inputId = "improv_age_rng", label = "Age Range",
+          choices = ages, selected = c(min_age, max_age), grid = TRUE
+        )),
+        column(4, selectInput("improv_league", "League",
+                              choices = c("All", League$name),
+                              selected = "All")),
+        column(4, numericInput("improv_min", "Min. Rating Increase", value = 5, min = -100, max = 100))
+      )
     ),
     fluidRow(
-      column(12, pickerInput(
-        inputId = "perf_teams", label = "Filter Teams to Display",
-        choices = NULL, multiple = TRUE,
-        options = list(`actions-box` = TRUE)
-      ))
-    ),
-    hr(),
-    fluidRow(
-      column(6,
-        h4("Overall Performance in League"),
-        plotlyOutput("perf_plot_overall")
+      column(7,
+        card(
+          card_header(class = "section-title", "Player Ratings Overview"),
+          card_body(plotlyOutput("improv_improvement_plot", height = "500px"))
+        )
       ),
-      column(6,
-        h4(textOutput("perf_against_title")),
-        plotlyOutput("perf_plot_against")
+      column(5,
+        card(
+          card_header(class = "section-title", "Improvement Over Time"),
+          card_body(
+            tags$p(class = "text-muted", style = "font-size:0.85rem; margin-bottom:10px;",
+                   "Use the Lasso or Box Select tool on the left chart to select players."),
+            plotlyOutput("improv_line_plot", height = "460px")
+          )
+        )
       )
     )
   ),
 
-  tabPanel("Team Statistics",
-    fluidRow(
-      column(4, selectInput("stats_league", "Select League", League$name)),
-      column(4, sliderTextInput(
-        inputId = "stats_season_rng", label = "Select Season Range",
-        choices = all_seasons, selected = c("2008/2009", "2015/2016"), grid = TRUE
-      )),
-      column(4, radioButtons("stats_side", "Match Side",
-                             choices = c("Both", "Home", "Away"), selected = "Both", inline = TRUE))
+  nav_panel(
+    title = "League Performance",
+    icon = icon("trophy"),
+    div(class = "filter-panel",
+      fluidRow(
+        column(3, selectInput("perf_league", "League", League$name)),
+        column(3, selectInput("perf_against_team", "Compare Against", choices = NULL)),
+        column(3, sliderTextInput(
+          inputId = "perf_season_rng", label = "Season Range",
+          choices = all_seasons, selected = c("2008/2009", "2015/2016"), grid = TRUE
+        )),
+        column(3, radioButtons("perf_side", "Match Side",
+                               choices = c("Both", "Home", "Away"), selected = "Both", inline = TRUE))
+      ),
+      fluidRow(
+        column(12, pickerInput(
+          inputId = "perf_teams", label = "Filter Teams",
+          choices = NULL, multiple = TRUE,
+          options = list(`actions-box` = TRUE)
+        ))
+      )
     ),
     fluidRow(
-      column(12, pickerInput(
-        inputId = "stats_teams", label = "Filter Teams to Display",
-        choices = NULL, multiple = TRUE,
-        options = list(`actions-box` = TRUE)
-      ))
-    ),
-    hr(),
-    fluidRow(
-      column(6, offset=3,
-        h4("Average Possession, Goals Scored & Conceded"),
-        girafeOutput("stats_plot")
+      column(6,
+        card(
+          card_header(class = "section-title", "Overall Performance in League"),
+          card_body(plotlyOutput("perf_plot_overall", height = "500px"))
+        )
+      ),
+      column(6,
+        card(
+          card_header(class = "section-title", textOutput("perf_against_title")),
+          card_body(plotlyOutput("perf_plot_against", height = "500px"))
+        )
       )
     )
   ),
-  tabPanel("Player Comparison Radar",
-           fluidRow(
-             column(4, selectizeInput("radar_player_A", "Search Player A", 
-                                      choices = NULL, 
-                                      options = list(placeholder = 'Type to search...'))),
-             column(4, selectizeInput("radar_player_B", "Search Player B", 
-                                      choices = NULL, 
-                                      options = list(placeholder = 'Type to search...'))),
-             column(4, selectizeInput("radar_player_C", "Search Player C", 
-                                      choices = NULL, 
-                                      options = list(placeholder = 'Type to search...')))
-           ),
-           hr(),
-           fluidRow(
-             column(8, 
-                    plotlyOutput("radar_comparison_plot")
-             ),
-             column(4,
-                    wellPanel(
-                      h4("Attribute Definitions"),
-                      tags$ul(
-                        tags$li(tags$b("Short Passing:"), " Accuracy and speed of passes over short distances."),
-                        tags$li(tags$b("Long Passing:"), " Accuracy and speed of passes over long distances."),
-                        tags$li(tags$b("Stamina:"), " The rate at which a player tires during a match."),
-                        tags$li(tags$b("Crossing:"), " Accuracy of balls played from areas ousitde the box into the box."),
-                        tags$li(tags$b("Ball Control:"), " Ability to keep the ball under control when pressured.")
-                      ),
-                      hr(),
-                      tags$p(tags$i("Note: Values are based on FIFA attributes (0-100 scale)."))
-                    )
-             )
-           )
+
+  nav_panel(
+    title = "Team Statistics",
+    icon = icon("futbol"),
+    div(class = "filter-panel",
+      fluidRow(
+        column(4, selectInput("stats_league", "League", League$name)),
+        column(4, sliderTextInput(
+          inputId = "stats_season_rng", label = "Season Range",
+          choices = all_seasons, selected = c("2008/2009", "2015/2016"), grid = TRUE
+        )),
+        column(4, radioButtons("stats_side", "Match Side",
+                               choices = c("Both", "Home", "Away"), selected = "Both", inline = TRUE))
+      ),
+      fluidRow(
+        column(12, pickerInput(
+          inputId = "stats_teams", label = "Filter Teams",
+          choices = NULL, multiple = TRUE,
+          options = list(`actions-box` = TRUE)
+        ))
+      )
+    ),
+    fluidRow(
+      column(8, offset = 2,
+        card(
+          card_header(class = "section-title", "Average Possession, Goals Scored & Conceded"),
+          card_body(girafeOutput("stats_plot", height = "550px"))
+        )
+      )
+    )
+  ),
+
+  nav_panel(
+    title = "Player Comparison",
+    icon = icon("users"),
+    div(class = "filter-panel",
+      fluidRow(
+        column(4, selectizeInput("radar_player_A", "Player A",
+                                 choices = NULL,
+                                 options = list(placeholder = 'Type to search...'))),
+        column(4, selectizeInput("radar_player_B", "Player B",
+                                 choices = NULL,
+                                 options = list(placeholder = 'Type to search...'))),
+        column(4, selectizeInput("radar_player_C", "Player C",
+                                 choices = NULL,
+                                 options = list(placeholder = 'Type to search...')))
+      )
+    ),
+    fluidRow(
+      column(8,
+        card(
+          card_header(class = "section-title", "Skill Radar Comparison"),
+          card_body(plotlyOutput("radar_comparison_plot", height = "500px"))
+        )
+      ),
+      column(4,
+        div(class = "attr-panel",
+          tags$h5("Attribute Definitions"),
+          tags$ul(
+            tags$li(tags$strong("Short Passing:"), " Accuracy and speed of passes over short distances."),
+            tags$li(tags$strong("Long Passing:"), " Accuracy and speed of passes over long distances."),
+            tags$li(tags$strong("Stamina:"), " The rate at which a player tires during a match."),
+            tags$li(tags$strong("Crossing:"), " Accuracy of balls played from areas outside the box into the box."),
+            tags$li(tags$strong("Ball Control:"), " Ability to keep the ball under control when pressured.")
+          ),
+          div(class = "note", "Values are based on FIFA attributes (0–100 scale).")
+        )
+      )
+    )
   )
 )
 
-# ── Server ──
+# Server
 server <- function(input, output, session) {
-  # ── Player Improvement tab ──
+  # Player Improvement tab
   improv_age <- reactive({
     req(input$improv_age_rng)
     start_idx = which(ages == input$improv_age_rng[1])
@@ -527,17 +823,24 @@ server <- function(input, output, session) {
     
     if (is.null(pids)) {
       return(
-        plot_ly(type = "scatter", mode = "markers") %>% 
-          layout(annotations = list(
-            text = "Use the Lasso or Box Select tool<br>to select multiple players", 
-            showarrow = FALSE, x = 0.5, y = 0.5, xref='paper', yref='paper'
-          ))
+        plot_ly(type = "scatter", mode = "markers") %>%
+          layout(
+            paper_bgcolor = "transparent",
+            plot_bgcolor = "transparent",
+            xaxis = list(visible = FALSE),
+            yaxis = list(visible = FALSE),
+            annotations = list(
+              text = "Use the Lasso or Box Select tool<br>to select multiple players",
+              showarrow = FALSE, x = 0.5, y = 0.5, xref = 'paper', yref = 'paper',
+              font = list(color = "#5e7a90", size = 14)
+            )
+          )
       )
     }
     improvement_line_plot(pids)
   })
   
-  # ── League Performance tab ──
+  # League Performance tab
   perf_seasons <- reactive({
     req(input$perf_season_rng)
     start_idx = which(all_seasons == input$perf_season_rng[1])
@@ -573,7 +876,7 @@ server <- function(input, output, session) {
     paste("Performance Against:", input$perf_against_team)
   })
 
-  # ── Team Statistics tab ──
+  # Team Statistics tab
   stats_seasons <- reactive({
     req(input$stats_season_rng)
     start_idx = which(all_seasons == input$stats_season_rng[1])
@@ -597,12 +900,20 @@ server <- function(input, output, session) {
     average_stats_plot(input$stats_teams, stats_seasons(), input$stats_side)
   })
   
-  # ── Radar chart tab ──
-  player_choices <- sort(unique(Player_Data$player_name_and_team))
-  
-  updateSelectizeInput(session, "radar_player_A",selected = "", choices = player_choices, server = TRUE)
-  updateSelectizeInput(session, "radar_player_B",selected = "", choices = player_choices, server = TRUE)
-  updateSelectizeInput(session, "radar_player_C",selected = "", choices = player_choices, server = TRUE)
+  # Radar chart tab
+  grouped_players <- Player_Data %>%
+    distinct(player_name_and_team, league_name) %>%
+    arrange(player_name_and_team) %>%
+    split(.$league_name) %>%
+    lapply(function(df) sort(df$player_name_and_team))
+  grouped_players <- grouped_players[sort(names(grouped_players))]
+
+  radar_defaults <- c("Lionel Messi (BAR)", "Cristiano Ronaldo (REA)", "Neymar (BAR)")
+  radar_ids <- c("radar_player_A", "radar_player_B", "radar_player_C")
+  for (i in seq_along(radar_ids)) {
+    updateSelectizeInput(session, radar_ids[i], selected = radar_defaults[i],
+      choices = grouped_players, options = list(placeholder = 'Type to search...'))
+  }
   
   output$radar_comparison_plot = renderPlotly({
     selected = c(input$radar_player_A, input$radar_player_B, input$radar_player_C)
