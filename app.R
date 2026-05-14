@@ -68,7 +68,9 @@ calculate_team_rates = function(selected_teams, selected_seasons, side = "Both")
       loss_rate = sum(outcome == "Loss") / matches_played,
       .groups = "drop"
     )
-  na.omit(result) %>% arrange(desc(win_rate))
+  na.omit(result) %>%
+    arrange(desc(win_rate)) %>%
+    slice_head(n = 15)
 }
 
 calculate_team_rates_against = function(selected_teams, selected_seasons, against_team, side = "Both") {
@@ -102,7 +104,10 @@ calculate_team_rates_against = function(selected_teams, selected_seasons, agains
       .groups = "drop"
     )
 
-  result = na.omit(result) %>% arrange(desc(win_rate))
+ # result = na.omit(result) %>% arrange(desc(win_rate))
+  result = na.omit(result) %>%
+    arrange(desc(win_rate)) %>%
+    slice_head(n = 15)
   result %>% add_row(team = against_team, matches_played = NA, win_rate = NA, draw_rate = NA, loss_rate = NA)
 }
 
@@ -126,10 +131,26 @@ match_plot = function(selected_teams, selected_seasons, side = "Both") {
     geom_bar(position = "stack", stat = "identity", col = "#0f1923", linewidth = 0.3) +
     coord_flip() +
     dark_theme +
+    theme(
+      axis.text.y = element_text(
+        size = 10,
+        hjust = 1,
+        margin = margin(r = 25)
+      )
+    ) +
     scale_fill_manual(name = "Result",
                       values = c("Loss" = "#e74c3c", "Draw" = "#f39c12", "Win" = "#1abc54")) +
     labs(y = "Percentage (%)", x = "Team")
-  ggplotly(p, tooltip = "text") %>% plotly_dark_layout()
+  # ggplotly(p, tooltip = "text") %>% plotly_dark_layout()
+  ggplotly(p, tooltip = "text") %>%
+    layout(
+      yaxis = list(
+        automargin = TRUE,
+        ticklabelposition = "outside left",
+        ticklabelstandoff = 30
+      )
+    ) %>%
+    plotly_dark_layout()
 }
 
 match_plot_against = function(selected_teams, selected_seasons, against_team, side = "Both") {
@@ -153,6 +174,11 @@ match_plot_against = function(selected_teams, selected_seasons, against_team, si
     geom_bar(position = "stack", stat = "identity", col = "#0f1923", linewidth = 0.3) +
     coord_flip() +
     dark_theme +
+    
+    theme(
+      axis.text.y = element_text(size = 9,hjust = 1,margin = margin(r = 12)),
+      plot.margin = margin(10, 20, 10, 120)
+    ) +
     scale_fill_manual(name = "Result",
                       values = c("Loss" = "#e74c3c", "Draw" = "#f39c12", "Win" = "#1abc54")) +
     labs(y = "Percentage (%)", x = "Team")
@@ -648,6 +674,7 @@ html, body {
   }
 
 } 
+
 "
 
 app_theme <- bs_theme(
@@ -769,35 +796,46 @@ ui <- page_navbar(
       ),
       fluidRow(
         column(12, pickerInput(
-          inputId = "perf_teams", label = "Filter Teams",
-          choices = NULL, multiple = TRUE,
-          options = list(`actions-box` = TRUE)
+          inputId = "perf_teams",
+          label = "Filter Teams",
+          choices = NULL,
+          multiple = TRUE,
+          
+          options = list(
+            `actions-box` = TRUE,
+            `max-options` = 15)
         ))
       )
     ),
     fluidRow(
-      column(6,
-             card(
-               card_header(class = "section-title", "Overall Performance in League"),
-               card_body(
-                 plotlyOutput("perf_plot_overall", height = "420px")
-               )
-             )
+      
+      div(class = "col-lg-6 col-md-12",
+          
+          card(
+            card_header(class = "section-title", "Overall Performance in League"),
+            
+            card_body(
+              plotlyOutput("perf_plot_overall", height = "650px")
+            )
+          )
       ),
       
-      column(6,
-             card(
-               card_header(class = "section-title", textOutput("perf_against_title")),
-               card_body(
-                 plotlyOutput("perf_plot_against", height = "360px")
-               )
-             )
+      div(class = "col-lg-6 col-md-12",
+          
+          card(
+            card_header(class = "section-title", textOutput("perf_against_title")),
+            
+            card_body(
+              plotlyOutput("perf_plot_against", height = "650px")
+            )
+          )
       )
+      
     ),
     
     div(
       style = "
-    margin: 14px 0 6px 6px;
+    margin: 25px 0 10px 6px;
     padding-left: 14px;
     border-left: 2px solid rgba(26,188,84,0.45);
     color:#8fa8be;
