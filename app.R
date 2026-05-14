@@ -159,6 +159,76 @@ match_plot_against = function(selected_teams, selected_seasons, against_team, si
   ggplotly(p, tooltip = "text") %>% plotly_dark_layout()
 }
 
+opponent_threat_data = function(selected_team, selected_seasons, side = "Both") {
+  result = Full_Match %>%
+    filter(season %in% selected_seasons) %>%
+    filter(home_team_name == selected_team | away_team_name == selected_team) %>%
+    bind_rows(
+      rename(., team = home_team_name, opponent = away_team_name,
+             goals_for = home_team_goal, goals_against = away_team_goal) %>%
+        mutate(actual_side = "Home"),
+      rename(., team = away_team_name, opponent = home_team_name,
+             goals_for = away_team_goal, goals_against = home_team_goal) %>%
+        mutate(actual_side = "Away")
+    ) %>%
+    filter(team == selected_team) %>%
+    filter(if (side == "Both") TRUE else actual_side == side) %>%
+    mutate(
+      outcome = case_when(
+        goals_for > goals_against ~ "Win",
+        goals_for < goals_against ~ "Loss",
+        TRUE ~ "Draw"
+      ),
+      goal_difference = goals_for - goals_against
+    ) %>%
+    group_by(opponent) %>%
+    summarise(
+      matches_played = n(),
+      losses = sum(outcome == "Loss"),
+      loss_rate = losses / matches_played,
+      avg_goal_difference = mean(goal_difference),
+      .groups = "drop"
+    ) %>%
+    arrange(desc(loss_rate), desc(losses))
+  
+  result
+}
+opponent_threat_plot = function(selected_team, selected_seasons, side = "Both") {
+  
+  threat_data = opponent_threat_data(selected_team, selected_seasons, side) %>%
+    filter(matches_played >= 2) %>%
+    slice_max(order_by = loss_rate, n = 10)
+  
+  threat_data$opponent = factor(
+    threat_data$opponent,
+    levels = rev(threat_data$opponent)
+  )
+  
+  threat_data$loss_percent = round(threat_data$loss_rate * 100, 1)
+  
+  p = ggplot(threat_data, aes(
+    x = opponent,
+    y = loss_percent,
+    text = paste0(
+      "Opponent: ", opponent,
+      "<br>Loss rate: ", loss_percent, "%",
+      "<br>Losses: ", losses,
+      "<br>Matches played: ", matches_played,
+      "<br>Average goal difference: ",
+      round(avg_goal_difference, 2)
+    )
+  )) +
+    geom_col(fill = "#de8e08", colour = "black") +
+    coord_flip() +
+    theme_bw() +
+    labs(
+      x = "Opponent",
+      y = "Loss rate (%)",
+      title = paste("Opponent Threat Ranking for", selected_team)
+    )
+  
+  ggplotly(p, tooltip = "text")
+}
 stats_per_team = function(selected_teams, selected_seasons, side = "Both") {
   home_stats = Full_Match %>%
     filter(home_team_name %in% selected_teams, season %in% selected_seasons) %>%
@@ -740,6 +810,17 @@ ui <- page_navbar(
     )
   ),
 
+  fluidRow(
+    column(12,
+           card(
+             card_header(class = "section-title", "Opponent Threat Ranking"),
+             card_body(
+               p("This chart ranks the most difficult opponents for the selected team using loss rate. The tooltip also shows losses, matches played, and average goal difference."),
+               plotlyOutput("perf_threat_plot", height = "500px")
+             )
+           )
+    )
+  ),  
   nav_panel(
     title = "Team Statistics",
     icon = icon("futbol"),
@@ -918,7 +999,15 @@ server <- function(input, output, session) {
     req(input$perf_teams, input$perf_against_team, input$perf_side)
     match_plot_against(input$perf_teams, perf_seasons(), input$perf_against_team, input$perf_side)
   })
-
+  output$perf_threat_plot = renderPlotly({
+    req(input$perf_against_team, input$perf_side)
+    
+    opponent_threat_plot(
+      selected_team = input$perf_against_team,
+      selected_seasons = perf_seasons(),
+      side = input$perf_side
+    )
+  })
   output$perf_against_title <- renderText({
     req(input$perf_against_team)
     paste("Performance Against:", input$perf_against_team)
