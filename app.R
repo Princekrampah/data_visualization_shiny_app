@@ -105,8 +105,7 @@ calculate_team_rates_against = function(selected_teams, selected_seasons, agains
   
   # result = na.omit(result) %>% arrange(desc(win_rate))
   result = na.omit(result) %>%
-    arrange(desc(win_rate)) %>%
-    slice_head(n = 15)
+    arrange(desc(win_rate)) 
   result %>% add_row(team = against_team, matches_played = NA, win_rate = NA, draw_rate = NA, loss_rate = NA)
 }
 
