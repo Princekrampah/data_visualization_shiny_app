@@ -69,13 +69,12 @@ calculate_team_rates = function(selected_teams, selected_seasons, side = "Both")
       .groups = "drop"
     )
   na.omit(result) %>%
-    arrange(desc(win_rate)) %>%
-    slice_head(n = 15)
+    arrange(desc(win_rate))
 }
 
 calculate_team_rates_against = function(selected_teams, selected_seasons, against_team, side = "Both") {
   selected_teams_without_against <- selected_teams[!selected_teams == against_team]
-
+  
   result = Full_Match %>%
     filter(season %in% selected_seasons) %>%
     filter(
@@ -103,8 +102,8 @@ calculate_team_rates_against = function(selected_teams, selected_seasons, agains
       loss_rate = sum(outcome == "Loss") / matches_played,
       .groups = "drop"
     )
-
- # result = na.omit(result) %>% arrange(desc(win_rate))
+  
+  # result = na.omit(result) %>% arrange(desc(win_rate))
   result = na.omit(result) %>%
     arrange(desc(win_rate)) %>%
     slice_head(n = 15)
@@ -123,7 +122,7 @@ match_plot = function(selected_teams, selected_seasons, side = "Both") {
   long_team_rates$team = factor(long_team_rates$team, levels = rev(team_rates$team))
   long_team_rates$result_clean = factor(long_team_rates$result_clean, levels = c("Loss", "Draw", "Win"))
   long_team_rates$perc_label = round(as.numeric(long_team_rates$percentage) * 100, 1)
-
+  
   p = ggplot(long_team_rates, aes(
     x = team, y = perc_label, fill = result_clean,
     text = paste0("Team: ", team, "<br>Result: ", result_clean, "<br>Rate: ", perc_label, "%")
@@ -166,7 +165,7 @@ match_plot_against = function(selected_teams, selected_seasons, against_team, si
   long_team_rates$team = factor(long_team_rates$team, levels = rev(team_rates$team))
   long_team_rates$result_clean = factor(long_team_rates$result_clean, levels = c("Loss", "Draw", "Win"))
   long_team_rates$perc_label = round(as.numeric(long_team_rates$percentage) * 100, 1)
-
+  
   p = ggplot(long_team_rates, aes(
     x = team, y = perc_label, fill = result_clean,
     text = paste0("Team: ", team, "<br>Result: ", result_clean, "<br>Rate: ", perc_label, "%")
@@ -189,13 +188,13 @@ stats_per_team = function(selected_teams, selected_seasons, side = "Both") {
   home_stats = Full_Match %>%
     filter(home_team_name %in% selected_teams, season %in% selected_seasons) %>%
     select(team = home_team_name, scored = home_team_goal, conceded = away_team_goal, pos = homepos)
-
+  
   away_stats = Full_Match %>%
     filter(away_team_name %in% selected_teams, season %in% selected_seasons) %>%
     select(team = away_team_name, scored = away_team_goal, conceded = home_team_goal, pos = awaypos)
-
+  
   total_stats = if (side == "Home") home_stats else if (side == "Away") away_stats else rbind(home_stats, away_stats)
-
+  
   total_stats %>% group_by(team) %>% summarise(
     avg_goals_scored = mean(scored, na.rm = TRUE),
     avg_goals_conceded = mean(conceded, na.rm = TRUE),
@@ -293,7 +292,7 @@ improvement_line_plot = function(player_ids) {
   Subset_Player_Attributes = Player_Attributes %>% filter(player_api_id %in% player_ids) %>%
     select(player_fifa_api_id, player_api_id, date, overall_rating, potential)
   Player_Improvement = left_join(Subset_Player_Attributes, Subset_Player_Data,
-                                       by = c("player_api_id" = "player_id"))
+                                 by = c("player_api_id" = "player_id"))
   p = ggplot(Player_Improvement, aes(x = date, 
                                      y = overall_rating, 
                                      col = player_name_and_team,
@@ -307,7 +306,7 @@ improvement_line_plot = function(player_ids) {
     geom_line(linewidth = 1, alpha=0.9) + geom_point(size=1,alpha = 0.9) +
     dark_theme +
     labs(col = "Player", x="Date", y="Overall rating")
-
+  
   return(ggplotly(p, tooltip = "text") %>% plotly_dark_layout())
 }
 
@@ -337,11 +336,11 @@ radar_plot = function(player_ids) {
   
   colors = c("#1abc54", "#3498db", "#f39c12")
   players = unique(plot_data_long$player_name)
-
+  
   for(i in 1:length(players)) {
     player_subset = plot_data_long %>% filter(player_name == players[i])
     player_subset = rbind(player_subset, player_subset[1,])
-
+    
     p = p %>% add_trace(
       r = player_subset$value,
       theta = player_subset$attribute,
@@ -357,7 +356,7 @@ radar_plot = function(player_ids) {
       hoverinfo = "text"
     )
   }
-
+  
   p = p %>% layout(
     paper_bgcolor = "transparent",
     plot_bgcolor = "transparent",
@@ -378,7 +377,7 @@ radar_plot = function(player_ids) {
     legend = list(font = list(color = "#c5d0db")),
     showlegend = TRUE
   )
-
+  
   return(p)
 }
 
@@ -700,7 +699,7 @@ ui <- page_navbar(
   theme = app_theme,
   fillable = FALSE,
   header = tags$head(tags$style(HTML(app_css))),
-
+  
   nav_panel(
     title = "Player Improvement",
     icon = icon("chart-line"),
@@ -714,16 +713,16 @@ ui <- page_navbar(
     
     
     div(class = "filter-panel",
-      fluidRow(
-        column(4, sliderTextInput(
-          inputId = "improv_age_rng", label = "Age Range",
-          choices = ages, selected = c(min_age, max_age), grid = TRUE
-        )),
-        column(4, selectInput("improv_league", "League",
-                              choices = c("All", League$name),
-                              selected = "All")),
-        column(4, numericInput("improv_min", "Min. Rating Increase", value = 5, min = -100, max = 100))
-      )
+        fluidRow(
+          column(4, sliderTextInput(
+            inputId = "improv_age_rng", label = "Age Range",
+            choices = ages, selected = c(min_age, max_age), grid = TRUE
+          )),
+          column(4, selectInput("improv_league", "League",
+                                choices = c("All", League$name),
+                                selected = "All")),
+          column(4, numericInput("improv_min", "Min. Rating Increase", value = 5, min = -100, max = 100))
+        )
     ),
     fluidRow(
       column(7,
@@ -781,7 +780,7 @@ ui <- page_navbar(
     )
     
   ),
-
+  
   nav_panel(
     title = "League Performance",
     icon = icon("trophy"),
@@ -795,28 +794,28 @@ ui <- page_navbar(
     
     
     div(class = "filter-panel",
-      fluidRow(
-        column(3, selectInput("perf_league", "League", League$name)),
-        column(3, selectInput("perf_against_team", "Compare Against", choices = NULL)),
-        column(3, sliderTextInput(
-          inputId = "perf_season_rng", label = "Season Range",
-          choices = all_seasons, selected = c("2008/2009", "2015/2016"), grid = TRUE
-        )),
-        column(3, radioButtons("perf_side", "Match Side",
-                               choices = c("Both", "Home", "Away"), selected = "Both", inline = TRUE))
-      ),
-      fluidRow(
-        column(12, pickerInput(
-          inputId = "perf_teams",
-          label = "Filter Teams",
-          choices = NULL,
-          multiple = TRUE,
-          
-          options = list(
-            `actions-box` = TRUE,
-            `max-options` = 15)
-        ))
-      )
+        fluidRow(
+          column(3, selectInput("perf_league", "League", League$name)),
+          column(3, selectInput("perf_against_team", "Compare Against", choices = NULL)),
+          column(3, sliderTextInput(
+            inputId = "perf_season_rng", label = "Season Range",
+            choices = all_seasons, selected = c("2008/2009", "2015/2016"), grid = TRUE
+          )),
+          column(3, radioButtons("perf_side", "Match Side",
+                                 choices = c("Both", "Home", "Away"), selected = "Both", inline = TRUE))
+        ),
+        fluidRow(
+          column(12, pickerInput(
+            inputId = "perf_teams",
+            label = "Filter Teams",
+            choices = NULL,
+            multiple = TRUE,
+            
+            options = list(
+              `actions-box` = TRUE,
+              `max-options` = 15)
+          ))
+        )
     ),
     fluidRow(
       
@@ -874,8 +873,8 @@ ui <- page_navbar(
     )
     
   ),
- 
-
+  
+  
   nav_panel(
     title = "Team Statistics",
     icon = icon("futbol"),
@@ -887,25 +886,25 @@ ui <- page_navbar(
          balanced teams and tactical play styles.")
     ),
     
-   
+    
     
     div(class = "filter-panel",
-      fluidRow(
-        column(4, selectInput("stats_league", "League", League$name)),
-        column(4, sliderTextInput(
-          inputId = "stats_season_rng", label = "Season Range",
-          choices = all_seasons, selected = c("2008/2009", "2015/2016"), grid = TRUE
-        )),
-        column(4, radioButtons("stats_side", "Match Side",
-                               choices = c("Both", "Home", "Away"), selected = "Both", inline = TRUE))
-      ),
-      fluidRow(
-        column(12, pickerInput(
-          inputId = "stats_teams", label = "Filter Teams",
-          choices = NULL, multiple = TRUE,
-          options = list(`actions-box` = TRUE)
-        ))
-      )
+        fluidRow(
+          column(4, selectInput("stats_league", "League", League$name)),
+          column(4, sliderTextInput(
+            inputId = "stats_season_rng", label = "Season Range",
+            choices = all_seasons, selected = c("2008/2009", "2015/2016"), grid = TRUE
+          )),
+          column(4, radioButtons("stats_side", "Match Side",
+                                 choices = c("Both", "Home", "Away"), selected = "Both", inline = TRUE))
+        ),
+        fluidRow(
+          column(12, pickerInput(
+            inputId = "stats_teams", label = "Filter Teams",
+            choices = NULL, multiple = TRUE,
+            options = list(`actions-box` = TRUE)
+          ))
+        )
     ),
     fluidRow(
       column(8, offset = 2,
@@ -946,7 +945,7 @@ ui <- page_navbar(
     )
     
   ),
-
+  
   nav_panel(
     title = "Player Comparison",
     icon = icon("users"),
@@ -959,17 +958,17 @@ ui <- page_navbar(
     ),
     
     div(class = "filter-panel",
-      fluidRow(
-        column(4, selectizeInput("radar_player_A", "Player A",
-                                 choices = NULL,
-                                 options = list(placeholder = 'Type to search...'))),
-        column(4, selectizeInput("radar_player_B", "Player B",
-                                 choices = NULL,
-                                 options = list(placeholder = 'Type to search...'))),
-        column(4, selectizeInput("radar_player_C", "Player C",
-                                 choices = NULL,
-                                 options = list(placeholder = 'Type to search...')))
-      )
+        fluidRow(
+          column(4, selectizeInput("radar_player_A", "Player A",
+                                   choices = NULL,
+                                   options = list(placeholder = 'Type to search...'))),
+          column(4, selectizeInput("radar_player_B", "Player B",
+                                   choices = NULL,
+                                   options = list(placeholder = 'Type to search...'))),
+          column(4, selectizeInput("radar_player_C", "Player C",
+                                   choices = NULL,
+                                   options = list(placeholder = 'Type to search...')))
+        )
     ),
     fluidRow(
       column(8,
@@ -1100,12 +1099,12 @@ server <- function(input, output, session) {
     end_idx = which(all_seasons == input$perf_season_rng[2])
     all_seasons[start_idx:end_idx]
   })
-
+  
   perf_league_teams <- reactive({
     req(input$perf_league)
     teams_in_league(input$perf_league, perf_seasons())
   })
-
+  
   observeEvent(perf_league_teams(), {
     updatePickerInput(session, "perf_teams",
                       choices = sort(perf_league_teams()),
@@ -1113,22 +1112,22 @@ server <- function(input, output, session) {
     updateSelectInput(session, "perf_against_team",
                       choices = sort(perf_league_teams()))
   })
-
+  
   output$perf_plot_overall = renderPlotly({
     req(input$perf_teams, input$perf_side)
     match_plot(input$perf_teams, perf_seasons(), input$perf_side)
   })
-
+  
   output$perf_plot_against = renderPlotly({
     req(input$perf_teams, input$perf_against_team, input$perf_side)
     match_plot_against(input$perf_teams, perf_seasons(), input$perf_against_team, input$perf_side)
   })
-
+  
   output$perf_against_title <- renderText({
     req(input$perf_against_team)
     paste("Performance Against:", input$perf_against_team)
   })
-
+  
   # Team Statistics tab
   stats_seasons <- reactive({
     req(input$stats_season_rng)
@@ -1136,18 +1135,18 @@ server <- function(input, output, session) {
     end_idx = which(all_seasons == input$stats_season_rng[2])
     all_seasons[start_idx:end_idx]
   })
-
+  
   stats_league_teams <- reactive({
     req(input$stats_league)
     teams_in_league(input$stats_league, stats_seasons())
   })
-
+  
   observeEvent(stats_league_teams(), {
     updatePickerInput(session, "stats_teams",
                       choices = sort(stats_league_teams()),
                       selected = stats_league_teams())
   })
-
+  
   output$stats_plot = renderGirafe({
     req(input$stats_teams, input$stats_side)
     average_stats_plot(input$stats_teams, stats_seasons(), input$stats_side)
@@ -1160,12 +1159,12 @@ server <- function(input, output, session) {
     split(.$league_name) %>%
     lapply(function(df) sort(df$player_name_and_team))
   grouped_players <- grouped_players[sort(names(grouped_players))]
-
+  
   radar_defaults <- c("Lionel Messi (BAR)", "Cristiano Ronaldo (REA)", "Neymar (BAR)")
   radar_ids <- c("radar_player_A", "radar_player_B", "radar_player_C")
   for (i in seq_along(radar_ids)) {
     updateSelectizeInput(session, radar_ids[i], selected = radar_defaults[i],
-      choices = grouped_players, options = list(placeholder = 'Type to search...'))
+                         choices = grouped_players, options = list(placeholder = 'Type to search...'))
   }
   
   output$radar_comparison_plot = renderPlotly({
