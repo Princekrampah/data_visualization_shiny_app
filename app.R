@@ -750,6 +750,17 @@ ui <- page_navbar(
              )
       )
     ),
+    div(
+      class = "story-intro",
+      
+      HTML("
+  <strong>Key Insight:</strong>
+  Most high-improvement players appear between ages 20–25,
+  suggesting this age range contains the strongest development potential.
+  Attackers and midfielders also show faster rating growth trends
+  compared to other positions.
+  ")
+    ),
     
     div(
       style = "
@@ -834,6 +845,17 @@ ui <- page_navbar(
     ),
     
     div(
+      class = "story-intro",
+      
+      HTML("
+  <strong>Performance Interpretation:</strong>
+  Teams with higher win percentages consistently maintain lower loss rates
+  across seasons. Performance against specific opponents also highlights
+  tactical strengths, rivalries, and league competitiveness.
+  ")
+    ),
+    
+    div(
       style = "
     margin: 25px 0 10px 6px;
     padding-left: 14px;
@@ -895,6 +917,15 @@ ui <- page_navbar(
              )
       )
     ),
+    div(
+      class = "story-intro",
+      
+      HTML("
+  <strong>Statistical Insight:</strong>
+  Teams with stronger possession averages generally demonstrate higher attacking output,
+  although possession alone does not always guarantee defensive stability or match success.
+  ")
+    ),
     
     div(
       style = "
@@ -910,7 +941,7 @@ ui <- page_navbar(
       HTML("
     <span style='color:#1abc54; font-weight:600;'>Final Section</span><br>
     The final stage compares individual player attributes to better understand
-    how player profiles contribute to overall team performance.
+    how player profiles contribute to overall team.
   ")
     )
     
@@ -967,6 +998,16 @@ ui <- page_navbar(
                      "Values are based on FIFA attributes (0–100 scale).")
              )
       )
+    ),
+    
+    div(
+      class = "story-intro",
+      
+      HTML("
+  <strong>Player Analysis:</strong>
+  The radar chart highlights differences in technical and physical attributes,
+  helping identify balanced players, creative playmakers, and specialised strengths.
+  ")
     ),
     
     div(
