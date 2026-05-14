@@ -609,6 +609,23 @@ hr {
 .selectize-dropdown .optgroup:first-child .optgroup-header {
   border-top: none;
 }
+
+.story-intro {
+  background: linear-gradient(135deg, #14202c 0%, #172633 100%);
+  border-left: 4px solid #1abc54;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  color: #c5d0db;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+}
+
+.story-intro strong {
+  color: #1abc54;
+  font-weight: 700;
+}
 "
 
 app_theme <- bs_theme(
@@ -638,6 +655,13 @@ ui <- page_navbar(
   nav_panel(
     title = "Player Improvement",
     icon = icon("chart-line"),
+    div(class = "story-intro",
+        HTML("<strong>Player Improvement Analysis:</strong>
+         This section helps identify young players with strong growth potential
+         by analysing age, overall ratings, positional roles, and performance
+         improvement over time. Users can interactively compare player development trajectories.")
+    ),
+    
     div(class = "filter-panel",
       fluidRow(
         column(4, sliderTextInput(
@@ -673,6 +697,14 @@ ui <- page_navbar(
   nav_panel(
     title = "League Performance",
     icon = icon("trophy"),
+    
+    div(class = "story-intro",
+        HTML("<strong>League Performance Analysis:</strong>
+         This section compares team competitiveness across leagues and seasons
+         using win, draw, and loss percentages. Users can also evaluate how teams
+         perform against specific opponents under different match conditions.")
+    ),
+    
     div(class = "filter-panel",
       fluidRow(
         column(3, selectInput("perf_league", "League", League$name)),
@@ -711,6 +743,14 @@ ui <- page_navbar(
   nav_panel(
     title = "Team Statistics",
     icon = icon("futbol"),
+    
+    div(class = "story-intro",
+        HTML("<strong>Team Statistics Analysis:</strong>
+         This section evaluates possession dominance, attacking efficiency,
+         and defensive performance across teams. The visualisation helps identify
+         balanced teams and tactical play styles.")
+    ),
+    
     div(class = "filter-panel",
       fluidRow(
         column(4, selectInput("stats_league", "League", League$name)),
@@ -742,6 +782,14 @@ ui <- page_navbar(
   nav_panel(
     title = "Player Comparison",
     icon = icon("users"),
+    
+    div(class = "story-intro",
+        HTML("<strong>Player Attribute Comparison:</strong>
+         This section enables direct comparison of football players using
+         FIFA performance attributes such as passing, stamina, crossing,
+         and ball control. The radar chart highlights player strengths and weaknesses.")
+    ),
+    
     div(class = "filter-panel",
       fluidRow(
         column(4, selectizeInput("radar_player_A", "Player A",
