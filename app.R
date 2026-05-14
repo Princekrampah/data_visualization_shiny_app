@@ -662,6 +662,8 @@ ui <- page_navbar(
          improvement over time. Users can interactively compare player development trajectories.")
     ),
     
+    
+    
     div(class = "filter-panel",
       fluidRow(
         column(4, sliderTextInput(
@@ -676,22 +678,48 @@ ui <- page_navbar(
     ),
     fluidRow(
       column(7,
-        card(
-          card_header(class = "section-title", "Player Ratings Overview"),
-          card_body(plotlyOutput("improv_improvement_plot", height = "500px"))
-        )
+             card(
+               card_header(class = "section-title", "Player Ratings Overview"),
+               card_body(
+                 plotlyOutput("improv_improvement_plot", height = "500px")
+               )
+             )
       ),
+      
       column(5,
-        card(
-          card_header(class = "section-title", "Improvement Over Time"),
-          card_body(
-            tags$p(class = "text-muted", style = "font-size:0.85rem; margin-bottom:10px;",
-                   "Use the Lasso or Box Select tool on the left chart to select players."),
-            plotlyOutput("improv_line_plot", height = "460px")
-          )
-        )
+             card(
+               card_header(class = "section-title", "Improvement Over Time"),
+               card_body(
+                 tags$p(
+                   class = "text-muted",
+                   style = "font-size:0.85rem; margin-bottom:10px;",
+                   "Use the Lasso or Box Select tool on the left chart to select players."
+                 ),
+                 
+                 plotlyOutput("improv_line_plot", height = "460px")
+               )
+             )
       )
+    ),
+    
+    div(
+      style = "
+    margin: 25px 0 10px 6px;
+    padding-left: 14px;
+    border-left: 2px solid rgba(26,188,84,0.45);
+    color:#8fa8be;
+    font-size:0.88rem;
+    line-height:1.5;
+    max-width: 900px;
+  ",
+      
+      HTML("
+    <span style='color:#1abc54; font-weight:600;'>Next Step</span><br>
+    After identifying promising player development patterns,
+    the analysis shifts toward evaluating team and league competitiveness.
+  ")
     )
+    
   ),
 
   nav_panel(
@@ -704,6 +732,7 @@ ui <- page_navbar(
          using win, draw, and loss percentages. Users can also evaluate how teams
          perform against specific opponents under different match conditions.")
     ),
+    
     
     div(class = "filter-panel",
       fluidRow(
@@ -726,19 +755,44 @@ ui <- page_navbar(
     ),
     fluidRow(
       column(6,
-        card(
-          card_header(class = "section-title", "Overall Performance in League"),
-          card_body(plotlyOutput("perf_plot_overall", height = "500px"))
-        )
+             card(
+               card_header(class = "section-title", "Overall Performance in League"),
+               card_body(
+                 plotlyOutput("perf_plot_overall", height = "500px")
+               )
+             )
       ),
+      
       column(6,
-        card(
-          card_header(class = "section-title", textOutput("perf_against_title")),
-          card_body(plotlyOutput("perf_plot_against", height = "500px"))
-        )
+             card(
+               card_header(class = "section-title", textOutput("perf_against_title")),
+               card_body(
+                 plotlyOutput("perf_plot_against", height = "500px")
+               )
+             )
       )
+    ),
+    
+    div(
+      style = "
+    margin: 25px 0 10px 6px;
+    padding-left: 14px;
+    border-left: 2px solid rgba(26,188,84,0.45);
+    color:#8fa8be;
+    font-size:0.88rem;
+    line-height:1.5;
+    max-width: 900px;
+  ",
+      
+      HTML("
+    <span style='color:#1abc54; font-weight:600;'>Next Step</span><br>
+    Following league-level performance analysis,
+    we now examine tactical team statistics such as possession and goal efficiency.
+  ")
     )
+    
   ),
+ 
 
   nav_panel(
     title = "Team Statistics",
@@ -750,6 +804,8 @@ ui <- page_navbar(
          and defensive performance across teams. The visualisation helps identify
          balanced teams and tactical play styles.")
     ),
+    
+   
     
     div(class = "filter-panel",
       fluidRow(
@@ -771,12 +827,33 @@ ui <- page_navbar(
     ),
     fluidRow(
       column(8, offset = 2,
-        card(
-          card_header(class = "section-title", "Average Possession, Goals Scored & Conceded"),
-          card_body(girafeOutput("stats_plot", height = "550px"))
-        )
+             card(
+               card_header(class = "section-title", "Average Possession, Goals Scored & Conceded"),
+               card_body(
+                 girafeOutput("stats_plot", height = "550px")
+               )
+             )
       )
+    ),
+    
+    div(
+      style = "
+    margin: 25px 0 10px 6px;
+    padding-left: 14px;
+    border-left: 2px solid rgba(26,188,84,0.45);
+    color:#8fa8be;
+    font-size:0.88rem;
+    line-height:1.5;
+    max-width: 900px;
+  ",
+      
+      HTML("
+    <span style='color:#1abc54; font-weight:600;'>Final Section</span><br>
+    The final stage compares individual player attributes to better understand
+    how player profiles contribute to overall team performance.
+  ")
     )
+    
   ),
 
   nav_panel(
@@ -805,27 +882,54 @@ ui <- page_navbar(
     ),
     fluidRow(
       column(8,
-        card(
-          card_header(class = "section-title", "Skill Radar Comparison"),
-          card_body(plotlyOutput("radar_comparison_plot", height = "500px"))
-        )
+             card(
+               card_header(class = "section-title", "Skill Radar Comparison"),
+               card_body(
+                 plotlyOutput("radar_comparison_plot", height = "500px")
+               )
+             )
       ),
+      
       column(4,
-        div(class = "attr-panel",
-          tags$h5("Attribute Definitions"),
-          tags$ul(
-            tags$li(tags$strong("Short Passing:"), " Accuracy and speed of passes over short distances."),
-            tags$li(tags$strong("Long Passing:"), " Accuracy and speed of passes over long distances."),
-            tags$li(tags$strong("Stamina:"), " The rate at which a player tires during a match."),
-            tags$li(tags$strong("Crossing:"), " Accuracy of balls played from areas outside the box into the box."),
-            tags$li(tags$strong("Ball Control:"), " Ability to keep the ball under control when pressured.")
-          ),
-          div(class = "note", "Values are based on FIFA attributes (0–100 scale).")
-        )
+             div(class = "attr-panel",
+                 
+                 tags$h5("Attribute Definitions"),
+                 
+                 tags$ul(
+                   tags$li(tags$strong("Short Passing:"), " Accuracy and speed of passes over short distances."),
+                   tags$li(tags$strong("Long Passing:"), " Accuracy and speed of passes over long distances."),
+                   tags$li(tags$strong("Stamina:"), " The rate at which a player tires during a match."),
+                   tags$li(tags$strong("Crossing:"), " Accuracy of balls played from areas outside the box into the box."),
+                   tags$li(tags$strong("Ball Control:"), " Ability to keep the ball under control when pressured.")
+                 ),
+                 
+                 div(class = "note",
+                     "Values are based on FIFA attributes (0–100 scale).")
+             )
       )
+    ),
+    
+    div(
+      style = "
+    margin: 25px 0 10px 6px;
+    padding-left: 14px;
+    border-left: 2px solid rgba(26,188,84,0.45);
+    color:#8fa8be;
+    font-size:0.88rem;
+    line-height:1.5;
+    max-width: 900px;
+  ",
+      
+      HTML("
+    <span style='color:#1abc54; font-weight:600;'>Analysis Complete</span><br>
+    This final section concludes the dashboard by linking individual player
+    attributes to broader team performance and competitive football analysis.
+  ")
     )
+    
   )
 )
+
 
 # Server
 server <- function(input, output, session) {
