@@ -812,8 +812,8 @@ ui <- page_navbar(
             multiple = TRUE,
             
             options = list(
-              `actions-box` = TRUE,
-              `max-options` = 15)
+              `actions-box` = TRUE
+              )
           ))
         )
     ),
