@@ -383,6 +383,7 @@ body {
 .card-header {
   background-color: #1c3040 !important;
   border-bottom: 1px solid #233545 !important;
+  padding: 10px 14px !important;
   font-weight: 600;
   letter-spacing: 0.3px;
   border-radius: 12px 12px 0 0 !important;
@@ -392,7 +393,7 @@ body {
   background: linear-gradient(135deg, #1c3040 0%, #172633 100%);
   border: 1px solid #233545;
   border-radius: 12px;
-  padding: 20px 24px;
+   padding: 12px 16px;
   margin-bottom: 20px;
 }
 
@@ -557,7 +558,7 @@ input[type='number']:focus {
 }
 
 .tab-content > .tab-pane {
-  padding: 24px 8px;
+  padding: 12px 6px;
 }
 
 .nav-link {
@@ -613,8 +614,8 @@ hr {
 .story-intro {
   background: linear-gradient(135deg, #14202c 0%, #172633 100%);
   border-left: 4px solid #1abc54;
-  padding: 16px 20px;
-  margin-bottom: 20px;
+  padding: 10px 14px;
+  margin-bottom: 12px;;
   border-radius: 10px;
   color: #c5d0db;
   font-size: 0.95rem;
@@ -626,6 +627,27 @@ hr {
   color: #1abc54;
   font-weight: 700;
 }
+
+.container-fluid {
+  overflow-x: hidden;
+}
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+@media (max-width: 1200px) {
+
+  .col-sm-7,
+  .col-sm-5,
+  .col-sm-8,
+  .col-sm-4,
+  .col-sm-6 {
+    width: 100% !important;
+  }
+
+} 
 "
 
 app_theme <- bs_theme(
@@ -681,7 +703,7 @@ ui <- page_navbar(
              card(
                card_header(class = "section-title", "Player Ratings Overview"),
                card_body(
-                 plotlyOutput("improv_improvement_plot", height = "500px")
+                 plotlyOutput("improv_improvement_plot", height = "360px")
                )
              )
       ),
@@ -696,7 +718,7 @@ ui <- page_navbar(
                    "Use the Lasso or Box Select tool on the left chart to select players."
                  ),
                  
-                 plotlyOutput("improv_line_plot", height = "460px")
+                 plotlyOutput("improv_line_plot", height = "360px")
                )
              )
       )
@@ -758,7 +780,7 @@ ui <- page_navbar(
              card(
                card_header(class = "section-title", "Overall Performance in League"),
                card_body(
-                 plotlyOutput("perf_plot_overall", height = "500px")
+                 plotlyOutput("perf_plot_overall", height = "420px")
                )
              )
       ),
@@ -767,7 +789,7 @@ ui <- page_navbar(
              card(
                card_header(class = "section-title", textOutput("perf_against_title")),
                card_body(
-                 plotlyOutput("perf_plot_against", height = "500px")
+                 plotlyOutput("perf_plot_against", height = "360px")
                )
              )
       )
@@ -775,7 +797,7 @@ ui <- page_navbar(
     
     div(
       style = "
-    margin: 25px 0 10px 6px;
+    margin: 14px 0 6px 6px;
     padding-left: 14px;
     border-left: 2px solid rgba(26,188,84,0.45);
     color:#8fa8be;
@@ -830,7 +852,7 @@ ui <- page_navbar(
              card(
                card_header(class = "section-title", "Average Possession, Goals Scored & Conceded"),
                card_body(
-                 girafeOutput("stats_plot", height = "550px")
+                 girafeOutput("stats_plot", height = "360px")
                )
              )
       )
@@ -885,7 +907,7 @@ ui <- page_navbar(
              card(
                card_header(class = "section-title", "Skill Radar Comparison"),
                card_body(
-                 plotlyOutput("radar_comparison_plot", height = "500px")
+                 plotlyOutput("radar_comparison_plot", height = "420px")
                )
              )
       ),
