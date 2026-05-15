@@ -174,6 +174,7 @@ match_plot_against = function(selected_teams, selected_seasons, against_team, si
     x = team,
     y = perc_label,
     fill = result_clean,
+    # Extra hover details help users interpret the performance-against plot
     text = paste0(
       "Team: ", team,
       "<br>Result: ", result_clean,
