@@ -89,17 +89,22 @@ calculate_team_rates_against = function(selected_teams, selected_seasons, agains
     ) %>%
     filter(team %in% selected_teams_without_against) %>%
     filter(if (side == "Both") TRUE else actual_side == side) %>%
-    mutate(outcome = case_when(
-      goals_for > goals_against ~ "Win",
-      goals_for < goals_against ~ "Loss",
-      TRUE ~ "Draw"
-    )) %>%
+    mutate(
+      outcome = case_when(
+        goals_for > goals_against ~ "Win",
+        goals_for < goals_against ~ "Loss",
+        TRUE ~ "Draw"
+      ),
+      goal_difference = goals_for - goals_against
+    ) %>%
     group_by(team) %>%
     summarise(
       matches_played = n(),
-      win_rate  = sum(outcome == "Win") / matches_played,
+      losses = sum(outcome == "Loss"),
+      avg_goal_difference = mean(goal_difference),
+      win_rate = sum(outcome == "Win") / matches_played,
       draw_rate = sum(outcome == "Draw") / matches_played,
-      loss_rate = sum(outcome == "Loss") / matches_played,
+      loss_rate = losses / matches_played,
       .groups = "drop"
     )
   
@@ -166,8 +171,17 @@ match_plot_against = function(selected_teams, selected_seasons, against_team, si
   long_team_rates$perc_label = round(as.numeric(long_team_rates$percentage) * 100, 1)
   
   p = ggplot(long_team_rates, aes(
-    x = team, y = perc_label, fill = result_clean,
-    text = paste0("Team: ", team, "<br>Result: ", result_clean, "<br>Rate: ", perc_label, "%")
+    x = team,
+    y = perc_label,
+    fill = result_clean,
+    text = paste0(
+      "Team: ", team,
+      "<br>Result: ", result_clean,
+      "<br>Rate: ", perc_label, "%",
+      "<br>Matches played: ", matches_played,
+      "<br>Losses: ", losses,
+      "<br>Average goal difference: ", round(avg_goal_difference, 2)
+    )
   )) +
     geom_bar(position = "stack", stat = "identity", col = "#0f1923", linewidth = 0.3) +
     coord_flip() +
@@ -182,6 +196,7 @@ match_plot_against = function(selected_teams, selected_seasons, against_team, si
     labs(y = "Percentage (%)", x = "Team")
   ggplotly(p, tooltip = "text") %>% plotly_dark_layout()
 }
+
 
 stats_per_team = function(selected_teams, selected_seasons, side = "Both") {
   home_stats = Full_Match %>%
@@ -872,7 +887,6 @@ ui <- page_navbar(
     )
     
   ),
-  
   
   nav_panel(
     title = "Team Statistics",
