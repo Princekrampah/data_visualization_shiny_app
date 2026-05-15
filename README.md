@@ -4,6 +4,13 @@
 
 A data visualization school project built with R Shiny that explores European football (soccer) data across 11 leagues and 8 seasons (2008/2009 to 2015/2016). The dashboard provides interactive visualizations for comparing team performance, player ratings, and skill attributes using match and FIFA player data.
 
+## Contributors
+
+- **Arnoud Vandevelde (KwaZyy)**
+- **Prince Krampah**
+- **Atemefac Valery (Curate419)**
+- **Longkong Rawlings Kamta**
+
 ## Visualizations
 
 The app is organized into four tabs:
